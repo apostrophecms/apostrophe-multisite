@@ -1,5 +1,7 @@
 # apostrophe-multisite
 
+## A work in progress
+
 ```javascript
 const multi = require('apostrophe-multisite')({
 
