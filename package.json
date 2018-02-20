@@ -1,0 +1,25 @@
+{
+  "name": "apostrophe-multisite",
+  "version": "2.0.0",
+  "description": "Multisite support for the Apostrophe CMS. Create & manage multiple sites with the same configuration and host them efficiently.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apostrophecms/apostrophe-multisite.git"
+  },
+  "keywords": [
+    "apostrophecms",
+    "apostrophe",
+    "cms",
+    "multisite"
+  ],
+  "author": "P'unk Avenue LLC",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/apostrophecms/apostrophe-multisite/issues"
+  },
+  "homepage": "https://github.com/apostrophecms/apostrophe-multisite#readme"
+}
