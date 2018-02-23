@@ -6,6 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "engines": {
+    "node": ">=8.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/apostrophecms/apostrophe-multisite.git"
@@ -21,5 +24,14 @@
   "bugs": {
     "url": "https://github.com/apostrophecms/apostrophe-multisite/issues"
   },
-  "homepage": "https://github.com/apostrophecms/apostrophe-multisite#readme"
+  "homepage": "https://github.com/apostrophecms/apostrophe-multisite#readme",
+  "dependencies": {
+    "http-proxy": "^1.16.2",
+    "lodash": "^4.17.5",
+    "mongodb": "^3.0.2",
+    "resolve": "^1.5.0"
+  },
+  "peerDependencies": {
+    "apostrophe": "^2.48.0"
+  }
 }
