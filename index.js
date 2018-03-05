@@ -1,6 +1,8 @@
 const _ = require('lodash');
 const mongo = require('mongodb');
 const fs = require('fs');
+const argv = require('boring')();
+const quote = require('shell-quote');
 
 module.exports = async function(options) {
 
@@ -64,7 +66,20 @@ module.exports = async function(options) {
   }
   const lowPort = parseInt(process.env.LOW_PORT || '4000');
   const totalPorts = parseInt(process.env.TOTAL_PORTS || '50000');
-  const dashboardPort = await spinUpDashboard();
+
+  if (argv.site) {
+    return runTask();
+  }
+
+  if (argv['all-sites']) {
+    return runTaskOnAllSites();
+  }
+
+  if (argv._.length) {
+    throw new Error('To run a command line task you must specify either --all-sites or --site=hostname-or-id. To run a task for the dashboard site specify --site=dashboard');
+  }
+
+  const dashboard = await spinUpDashboard();
   const proxy = httpProxy.createProxyServer({});
 
   app.use(dashboardMiddleware);
@@ -78,13 +93,7 @@ module.exports = async function(options) {
     throw new Error('server option or SERVER environment variable is badly formed, must be address:port');
   }
 
-  return await listen(parts[1], function(err) {
-    if (err) {
-      return callback(err);
-    }
-    console.log('Listening...');
-    // Never invoke callback if listening
-  });
+  return await listen(parts[1]);
 
   async function dashboardMiddleware(req, res, next) {
     const attempt = require('util').promisify(proxy.web.bind(proxy));
@@ -98,7 +107,7 @@ module.exports = async function(options) {
       return next();
     }
     try {
-      await attempt(req, res, { target: 'http://' + options.server + ':' + dashboardPort });
+      await attempt(req, res, { target: 'http://' + hostnameOnly(options.server) + ':' + dashboard.modules['apostrophe-express'].port });
     } catch (e) {
       // Currently a dashboard crash requires a restart of this process
       // (but you should have more than one process)
@@ -111,27 +120,37 @@ module.exports = async function(options) {
 
     const sites = dashboard.modules && dashboard.modules.sites;
     let site = req.get('Host');
-    const matches = site.match(/^([^\:]+)/);
+    const matches = (site || '').match(/^([^\:]+)/);
     if (!matches) {
       return next();
     }
     site = matches[1].toLowerCase();
-    if (site === dashboardHostname) {
-      return next();
-    }
 
     try {
 
       site = await dashboard.docs.db.findOne({
         type: 'site',
-        hostnames: { $in: site }
+        hostnames: { $in: [ site ] },
+        // For speed and because they can have their own users and permissions
+        // at page level, which works just fine, we do not implement the entire
+        // Apostrophe permissions stack with regard to the site object before
+        // deciding whether to proxy to it.
+        //
+        // However, we do make sure the site is published and not in the trash,
+        // to keep things intuitive for the superadmin.
+        trash: { $ne: true },
+        published: true
       });
+
+      if (!site) {
+        return options.orphan(req, res);
+      }
 
       let winner;
 
       if (req.headers['X-Apostrophe-Multisite-Spinup']) {
         if (!site.listeners[options.server]) {
-          site = await spinUpHere(req, site);
+          site = await spinUpHere(site);
         }
         winner = options.server;
       } else {
@@ -139,7 +158,7 @@ module.exports = async function(options) {
       }
 
       const keys = site.listeners.keys();
-      const winner = site.listeners[keys][Math.floor(Math.random() * keys.length)];
+      winner = site.listeners[keys][Math.floor(Math.random() * keys.length)];
 
       const attempt = require('util').promisify(proxy.web.bind(proxy));
 
@@ -165,7 +184,6 @@ module.exports = async function(options) {
       return res.status(500).send('error');
     }
   }
-
 
   async function spinUpAsNeeded(req, site) {
     while (site.listeners.keys().length < options.concurrencyPerSite) {
@@ -207,7 +225,7 @@ module.exports = async function(options) {
     return attempt(req, res, { target: 'http://' + server });
   }
 
-  async function spinUpHere(req, site) {
+  async function spinUpHere(site) {
   
     // The available free-port-finder modules all have race conditions and
     // no provision for avoiding popular ports like 3000. Pick randomly and
@@ -300,7 +318,7 @@ module.exports = async function(options) {
 
     const apos = await require('util').promisify(run)(options.dashboard || {});
     
-    return port;
+    return apos;
     
     function run(config, callback) {
 
@@ -391,6 +409,54 @@ module.exports = async function(options) {
     }      
   }
 
+  async function runTask() {
+    // Running an apostrophe task for a specific site
+    if (argv.site === 'dashboard') {
+      await spinUpDashboard();
+      return 'task';
+      // Task will execute, and will exit process on completion
+    }
+    site = argv.site.toLowerCase();
+    site = await dashboard.docs.db.findOne({
+      type: 'site',
+      $or: [
+        {
+          hostnames: { $in: [ site ] }
+        },
+        {
+          _id: site
+        }
+      ],
+      trash: { $ne: true }
+      // unpublished is OK, for prep purposes
+    });
+    if (!site) {
+      throw new Error('There is no such site.');
+    }
+    await spinUpHere(site);
+    // Task will execute, and will exit process on completion
+    return 'task';
+  }
+
+  async function runTaskOnAllSites() {
+    const originalArgs = argv;
+    // Prevent dashboard from attempting to run the task when it wakes up
+    process.argv = process.argv.slice(0, 1);
+    const dashboard = await spinUpDashboard();
+    var req = dashboard.tasks.getReq();
+    const sites = await dashboard.sites.find(req, {});
+    const exec = require('child_process').execSync;
+    sites.forEach(site => {
+      console.log('Site ' + site._id + ': ' + exec(quote(process.argv[0]) + ' ' +
+        argv._.map(arg => quote).join(' ') +
+        Object.keys(argv).filter(k => k !== '_').map(param => {
+          return '--' + param + '=' + quote(argv[param]);
+        }) +
+        '--site=' + site._id
+      ));
+    });
+  }
+
   function getRoot() {
     let _module = module;
     let m = _module;
@@ -414,6 +480,10 @@ module.exports = async function(options) {
   function getNpmPath(root, type) {
     const npmResolve = require('resolve');
     return npmResolve.sync(type, { basedir: getRootDir() });
+  }
+
+  function hostnameOnly(server) {
+    return server.replace(/\:\d+$/, '');
   }
 
 };
