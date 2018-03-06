@@ -33,6 +33,6 @@
     "shell-quote": "^1.6.1"
   },
   "peerDependencies": {
-    "apostrophe": "^2.48.0"
+    "apostrophe": "punkave/apostrophe"
   }
 }

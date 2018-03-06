@@ -93,6 +93,7 @@ module.exports = async function(options) {
     throw new Error('server option or SERVER environment variable is badly formed, must be address:port');
   }
 
+  console.log('Proxy listening on port ' + parts[1]);
   return await listen(parts[1]);
 
   async function dashboardMiddleware(req, res, next) {
@@ -127,7 +128,6 @@ module.exports = async function(options) {
     site = matches[1].toLowerCase();
 
     try {
-
       site = await dashboard.docs.db.findOne({
         type: 'site',
         hostnames: { $in: [ site ] },
@@ -141,42 +141,49 @@ module.exports = async function(options) {
         trash: { $ne: true },
         published: true
       });
-
       if (!site) {
         return options.orphan(req, res);
       }
-
+      console.log('winning site is ' + site.hostnames[0]);
       let winner;
 
       if (req.headers['X-Apostrophe-Multisite-Spinup']) {
+        console.log('we spin it up');
         if (!site.listeners[options.server]) {
+          console.log('new');
           site = await spinUpHere(site);
         }
+        console.log('existing');
         winner = options.server;
       } else {
+        console.log('awaiting spinUpAsNeeded');
         site = await spinUpAsNeeded(req, site);
       }
-
-      const keys = site.listeners.keys();
-      winner = site.listeners[keys][Math.floor(Math.random() * keys.length)];
-
-      const attempt = require('util').promisify(proxy.web.bind(proxy));
 
       let retried;
       do {
         retried = false;
+        const keys = Object.keys(site.listeners);
+        const winningServer = keys[Math.floor(Math.random() * keys.length)];
+        winner = site.listeners[winningServer];
+        console.log('winner is ' + winner);
+        const attempt = require('util').promisify(proxy.web.bind(proxy));
         try {
-          attempt(req, res, { target: 'http://' + winner });
+          console.log('attempting to ' + winner);
+          await attempt(req, res, { target: 'http://' + winner });
+          console.log('after');
         } catch (e) {
+          console.log('fail');
           retried = true;
           const $unset = {};
-          $unset[winner] = 1;
+          $unset['listeners.' + winningServer] = 1;
           await dashboard.docs.db.update({
             _id: site._id
           }, {
             $unset: $unset
           });
-          site = await spinUpAsNeeded(site);
+          delete site.listeners[winningServer];
+          site = await spinUpAsNeeded(req, site);
         }
       } while (retried);
     } catch (e) {
@@ -186,21 +193,27 @@ module.exports = async function(options) {
   }
 
   async function spinUpAsNeeded(req, site) {
-    while (site.listeners.keys().length < options.concurrencyPerSite) {
+    while (Object.keys(site.listeners).length < options.concurrencyPerSite) {
       site = await spinUp(req, site);
     }
+    console.log('returning from spinUpAsNeeded');
     return site;
   }
 
   async function spinUp(req, site) {
+    const name = (site.hostnames && site.hostnames[0]) || site._id;
+    console.log('Spinning up ' + name + ' somewhere...');
     // Where should it be spun up?
     // Preference for a separate physical server
-    const keys = site.listeners.keys();
+    const keys = Object.keys(site.listeners);
     let server = options.servers.find(server => {
       return !keys.find(listener => {
         return hostnameOnly(listener) === hostnameOnly(server);
       });
     });
+    if (server) {
+      console.log('remote server chosen: ' + server);
+    }
     if (!server) {
       // Settle for a different core
       server = options.servers.find(server => {
@@ -208,25 +221,35 @@ module.exports = async function(options) {
           return listener === server;
         });
       });
+      console.log('local server chosen: ' + server);
     }
     if (!server) {
       // It is already spun up everywhere
+      console.log('already spun up everywhere');
       return site;
     }
     if (server === options.server) {
       return spinUpHere(site);
     } else {
-      return spinUpThere(site, server);
+      return spinUpThere(req, site, server);
     }
   }
 
   async function spinUpThere(req, site, server) {
-    req.headers['X-Apostrophe-Multisite-Spinup'] = 1;
-    return attempt(req, res, { target: 'http://' + server });
+    const name = (site.hostnames && site.hostnames[0]) || site._id;
+    console.log('Passing on request to spin up ' + name + ' to a peer server...');
+    req.headers['x-apostrophe-multisite-spinup'] = 1;
+    req.rawHeaders.push('X-Apostrophe-Multisite-Spinup', '1');
+    const attempt = require('util').promisify(proxy.web.bind(proxy));
+    console.log('proxying to ' + server);
+    return attempt(req, req.res, { target: 'http://' + server });
   }
 
   async function spinUpHere(site) {
-  
+
+    const name = (site.hostnames && site.hostnames[0]) || site._id;
+    console.log('Spinning up ' + name + ' here...');
+
     // The available free-port-finder modules all have race conditions and
     // no provision for avoiding popular ports like 3000. Pick randomly and
     // retry if necessary. -Tom
@@ -235,13 +258,13 @@ module.exports = async function(options) {
 
     const apos = await require('util').promisify(run)(options.sites || {});
 
-    site.listeners[options.server] = hostnameOnly(options.server) = ':' + port;
+    site.listeners[options.server] = hostnameOnly(options.server) + ':' + port;
     const $set = {};
     $set['listeners.' + options.server] = site.listeners[options.server];
     await dashboard.docs.db.update({
       _id: site._id
     }, {
-      $set: set
+      $set: $set
     });
     
     return site;
@@ -303,7 +326,12 @@ module.exports = async function(options) {
     }
   }
 
-  async function spinUpDashboard() {
+  // config object is optional and is merged last with the options
+  // passed to apostrophe for the dashboard site
+
+  async function spinUpDashboard(config) {
+
+    console.log('Spinning up dashboard site...');
 
     // TODO: this function has a lot of code in common with spinUpHere.
     // Think about that. Should we support multiple constellations of
@@ -316,7 +344,8 @@ module.exports = async function(options) {
 
     const port = Math.floor(lowPort + Math.random() * totalPorts);
 
-    const apos = await require('util').promisify(run)(options.dashboard || {});
+    const finalConfig = _.merge({}, options.dashboard || {}, config);
+    const apos = await require('util').promisify(run)(finalConfig);
     
     return apos;
     
@@ -373,33 +402,36 @@ module.exports = async function(options) {
             },
 
             'sites-base': {
+              instantiate: false,
               extend: 'apostrophe-pieces',
               name: 'site',
-              addFields: [
-                {
-                  type: 'array',
-                  name: 'hostnamesArray',
-                  label: 'Hostnames',
-                  schema: [
-                    {
-                      type: 'string',
-                      required: true,
-                      name: 'hostname',
-                      help: 'All valid hostnames for the site must be on this list, for instance both example.com and www.example.com'
-                    }
-                  ]
-                }
-              ],
+              beforeConstruct: function(self, options) {
+                options.addFields = [
+                  {
+                    type: 'array',
+                    name: 'hostnamesArray',
+                    label: 'Hostnames',
+                    schema: [
+                      {
+                        type: 'string',
+                        required: true,
+                        name: 'hostname',
+                        help: 'All valid hostnames for the site must be on this list, for instance both example.com and www.example.com'
+                      }
+                    ]
+                  }
+                ].concat(options.addFields || []);
+              },
               construct: function(self, options) {
                 self.beforeSave = function(req, doc, options, callback) {
-                  doc.hostnames = _.filter((doc.hostnamesArray && doc.hostnamesArray.value) || [], function(value) {
+                  doc.hostnames = _.map(doc.hostnamesArray || [], function(value) {
                     return value.hostname.toLowerCase().trim();
                   });
+                  doc.listeners = doc.listeners || {};
                   return callback(null);
                 };
               }
             },
-
             'sites': {
               extend: 'sites-base'
             }
@@ -416,6 +448,8 @@ module.exports = async function(options) {
       return 'task';
       // Task will execute, and will exit process on completion
     }
+    // Prevent dashboard from attempting to run the task when it wakes up
+    const dashboard = await spinUpDashboard({ argv: { _: [] } });
     site = argv.site.toLowerCase();
     site = await dashboard.docs.db.findOne({
       type: 'site',
@@ -439,10 +473,8 @@ module.exports = async function(options) {
   }
 
   async function runTaskOnAllSites() {
-    const originalArgs = argv;
     // Prevent dashboard from attempting to run the task when it wakes up
-    process.argv = process.argv.slice(0, 1);
-    const dashboard = await spinUpDashboard();
+    const dashboard = await spinUpDashboard({ argv: { _: [] } });
     var req = dashboard.tasks.getReq();
     const sites = await dashboard.sites.find(req, {});
     const exec = require('child_process').execSync;
