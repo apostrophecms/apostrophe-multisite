@@ -2,7 +2,7 @@ const _ = require('lodash');
 const mongo = require('mongodb');
 const fs = require('fs');
 const argv = require('boring')();
-const quote = require('shell-quote');
+const quote = require('shell-quote').quote;
 
 module.exports = async function(options) {
 
@@ -19,10 +19,10 @@ module.exports = async function(options) {
     //
     // Default assumption is you have just one on localhost (which is a bad idea,
     // you should run more, ideally across physical servers).
-    servers: (process.env.SERVERS && process.env.SERVERS.split(' ')) || [ 'localhost:3000' ],
+    servers: [ 'localhost:3000' ],
     // THIS server, in the same format as above, so it can distinguish
     // itself from the rest
-    server: process.env.SERVER || 'localhost:3000',
+    server: 'localhost:3000',
     // Express route executed if a request comes in for a hostname that
     // is not present in the sites database
     orphan: function(req, res) {
@@ -33,14 +33,32 @@ module.exports = async function(options) {
     // Prefix, used primarily for database names. If you have
     // several multisite configurations going on (multiception!)
     // you'll need to make this unique for each collection of sites
-    shortNamePrefix: process.env.SHORTNAME_PREFIX || 'multisite-',
+    shortNamePrefix: 'multisite-',
     // MongoDB URL for database connection. If you have multiple physical
     // servers then you MUST configure this to a SHARED server (which
     // may be a replica set)
-    mongodbUrl: process.env.MONGODB_URL || 'mongodb://localhost:27017',
-    dashboardHostname: process.env.DASHBOARD_HOSTNAME,
+    mongodbUrl: 'mongodb://localhost:27017',
     root: getRoot()
   });
+
+  if (process.env.SERVERS) {
+    options.servers = process.env.SERVERS.split(' ');
+  }
+  if (process.env.SERVER) {
+    options.server = process.env.SERVER;
+  }
+  if (process.env.SESSION_SECRET) {
+    options.SESSION_SECRET = process.env.SESSION_SECRET;
+  }
+  if (process.env.SHORTNAME_PREFIX) {
+    options.shortNamePrefix = process.env.SHORTNAME_PREFIX;
+  }
+  if (process.env.MONGODB_URL) {
+    options.mongodbUrl = process.env.MONGODB_URL;
+  }
+  if (process.env.DASHBOARD_HOSTNAME) {
+    options.dashboardHostname = process.env.DASHBOARD_HOSTNAME;
+  }
   
   // All sites running under this process share a mongodb connection object
   const db = await mongo.MongoClient.connect(options.mongodbUrl, {
@@ -144,19 +162,21 @@ module.exports = async function(options) {
       if (!site) {
         return options.orphan(req, res);
       }
-      console.log('winning site is ' + site.hostnames[0]);
+      log(site, 'matches request');
       let winner;
 
-      if (req.headers['X-Apostrophe-Multisite-Spinup']) {
-        console.log('we spin it up');
+      if (req.headers['x-apostrophe-multisite-spinup'] === options.apiKey) {
+        log(site, 'we have been asked to spin it up');
         if (!site.listeners[options.server]) {
-          console.log('new');
+          log(site, 'it is new on this server');
           site = await spinUpHere(site);
+          console.log(site);
+        } else {
+          log(site, 'it already exists on this server');
         }
-        console.log('existing');
         winner = options.server;
       } else {
-        console.log('awaiting spinUpAsNeeded');
+        log(site, 'spinning up if needed');
         site = await spinUpAsNeeded(req, site);
       }
 
@@ -166,14 +186,13 @@ module.exports = async function(options) {
         const keys = Object.keys(site.listeners);
         const winningServer = keys[Math.floor(Math.random() * keys.length)];
         winner = site.listeners[winningServer];
-        console.log('winner is ' + winner);
         const attempt = require('util').promisify(proxy.web.bind(proxy));
         try {
-          console.log('attempting to ' + winner);
+          log(site, 'proxying to ' + winner);
           await attempt(req, res, { target: 'http://' + winner });
-          console.log('after');
+          log(site, 'proxy request succeeded');
         } catch (e) {
-          console.log('fail');
+          log(site, 'proxy request failed, marking as dead listener');
           retried = true;
           const $unset = {};
           $unset['listeners.' + winningServer] = 1;
@@ -196,13 +215,16 @@ module.exports = async function(options) {
     while (Object.keys(site.listeners).length < options.concurrencyPerSite) {
       site = await spinUp(req, site);
     }
-    console.log('returning from spinUpAsNeeded');
     return site;
   }
 
-  async function spinUp(req, site) {
+  function log(site, msg) {
     const name = (site.hostnames && site.hostnames[0]) || site._id;
-    console.log('Spinning up ' + name + ' somewhere...');
+    console.log(name + ': ' + msg);
+  }
+
+  async function spinUp(req, site) {
+    log(site, 'spinning up somewhere...');
     // Where should it be spun up?
     // Preference for a separate physical server
     const keys = Object.keys(site.listeners);
@@ -212,7 +234,7 @@ module.exports = async function(options) {
       });
     });
     if (server) {
-      console.log('remote server chosen: ' + server);
+      log(site, 'remote server chosen: ' + server);
     }
     if (!server) {
       // Settle for a different core
@@ -221,11 +243,11 @@ module.exports = async function(options) {
           return listener === server;
         });
       });
-      console.log('local server chosen: ' + server);
+      log(site, 'local server chosen: ' + server);
     }
     if (!server) {
       // It is already spun up everywhere
-      console.log('already spun up everywhere');
+      log(site, 'already spun up everywhere');
       return site;
     }
     if (server === options.server) {
@@ -236,19 +258,19 @@ module.exports = async function(options) {
   }
 
   async function spinUpThere(req, site, server) {
-    const name = (site.hostnames && site.hostnames[0]) || site._id;
-    console.log('Passing on request to spin up ' + name + ' to a peer server...');
-    req.headers['x-apostrophe-multisite-spinup'] = 1;
-    req.rawHeaders.push('X-Apostrophe-Multisite-Spinup', '1');
+    log(site, 'Asking a peer to spin it up...');
+    // Make it as if this header was always there. Less weird than
+    // using the proxy events. -Tom
+    req.headers['x-apostrophe-multisite-spinup'] = options.apiKey;
+    req.rawHeaders.push('X-Apostrophe-Multisite-Spinup', options.apiKey);
     const attempt = require('util').promisify(proxy.web.bind(proxy));
-    console.log('proxying to ' + server);
+    log(site, 'proxying to ' + server);
     return attempt(req, req.res, { target: 'http://' + server });
   }
 
   async function spinUpHere(site) {
 
-    const name = (site.hostnames && site.hostnames[0]) || site._id;
-    console.log('Spinning up ' + name + ' here...');
+    log(site, 'Spinning up here...');
 
     // The available free-port-finder modules all have race conditions and
     // no provision for avoiding popular ports like 3000. Pick randomly and
@@ -401,6 +423,9 @@ module.exports = async function(options) {
               }
             },
 
+            // a base class for the sites module allows the dev
+            // to extend it easily project-level as if it were
+            // coming from an npm module. -Tom
             'sites-base': {
               instantiate: false,
               extend: 'apostrophe-pieces',
@@ -432,9 +457,12 @@ module.exports = async function(options) {
                 };
               }
             },
+
             'sites': {
-              extend: 'sites-base'
+              extend: 'sites-base',
+              alias: 'sites'
             }
+
           }
         }, config)
       );
@@ -476,17 +504,14 @@ module.exports = async function(options) {
     // Prevent dashboard from attempting to run the task when it wakes up
     const dashboard = await spinUpDashboard({ argv: { _: [] } });
     var req = dashboard.tasks.getReq();
-    const sites = await dashboard.sites.find(req, {});
-    const exec = require('child_process').execSync;
+    const sites = await dashboard.sites.find(req, {}).toArray();
+    const spawn = require('child_process').spawnSync;
     sites.forEach(site => {
-      console.log('Site ' + site._id + ': ' + exec(quote(process.argv[0]) + ' ' +
-        argv._.map(arg => quote).join(' ') +
-        Object.keys(argv).filter(k => k !== '_').map(param => {
-          return '--' + param + '=' + quote(argv[param]);
-        }) +
-        '--site=' + site._id
-      ));
+      log(site, 'running task');
+      spawn(process.argv[0], process.argv.slice(1).concat('--site=' + site._id));
     });
+    // Our job to exit since we know the tasks are all complete already
+    process.exit(0);
   }
 
   function getRoot() {
