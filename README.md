@@ -176,3 +176,22 @@ node app apostrophe-migrations:migrate --all-sites
 
 > The `all-sites` option does not work for interactive tasks that prompt for information, like `apostrophe-users:change-password`, or otherwise read from standard input.
 
+## Code and templates for the hosted sites
+
+These live in `sites/lib/modules` of your project.
+
+## Code and templates for the dashboard site
+
+These live in `dashboard/lib/modules` of your project. Be aware that there is already a pieces module called `sites`, which powers the proxy that routes traffic to the individual sites. You can extend that module with more fields.
+
+## "But where do I configure the individual sites?"
+
+The entire point of this module is to share all of the code between sites. If we didn't want that, we'd build and deploy separate sites and we wouldn't need this module.
+
+So if you are using this approach, then all configuration that varies between sites must take place via the user interface.
+
+For instance, you might use the `apostrophe-palette` module, or just use `apostrophe-global` preferences for high level choices like site-wide styles or Google Analytics IDs, as documented on the Apostrophe website.
+
+"How can I mirror certain properties between apostrophe-global of individual sites and the `site` piece in the dashboard, so they both can see that stuff?"
+
+TODO.
