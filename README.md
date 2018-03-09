@@ -2,7 +2,13 @@
 
 ## A work in progress
 
-> This module requires Node 8. Your project must also have apostrophe as an npm dependency.
+## Requirements (Node 8 is REQUIRED)
+
+This module requires Node 8. Your project must also have `apostrophe` as an npm dependency.
+
+Hint: use `nvm` if you aren't ready to change to node 8 in your dev environment.
+
+## Sample `app.js`
 
 ```javascript
 const multi = require('apostrophe-multisite')({
@@ -109,7 +115,6 @@ const multi = require('apostrophe-multisite')({
   console.error(err);
   process.exit(1);
 });
-
 ```
 
 ## Running in dev: mapping hostnames to your own computer
