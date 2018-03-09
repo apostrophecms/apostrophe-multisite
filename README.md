@@ -111,3 +111,68 @@ const multi = require('apostrophe-multisite')({
 });
 
 ```
+
+## Running in dev: mapping hostnames to your own computer
+
+Each site needs a unique hostname, so you will need to edit `/etc/hosts` much as you would for developing PHP sites locally, adding a line like this:
+
+```
+127.0.0.1 dashboard one two three four
+```
+
+Now you can access `http://dashboard:3000` to visit the dashboard site, or `http://one:3000` to access site `one` (if you actually add a site with that hostname to the dashboard), etc.
+
+A site can have multiple hostnames, so you can accommodate real DNS names for staging and production too, if you are syncing things around. Of course, we need to write sync scripts that can actually handle moving multiple databases for you first.
+
+## Creating sites via the dashboard
+
+First you need to be able to log into the dashboard:
+
+```
+node app apostrophe-users:add admin admin --site=dashboard
+```
+
+Now log into `http://dashboard:3000`.
+
+Then, go to the admin bar, pick "Sites", and add a site, giving it one of the hostnames you added to `/etc/hosts`. Let's say the hostname is `one`.
+
+Now you can access:
+
+`http://one:3000`
+
+But, you still don't have any users for `one`. So make a user there:
+
+```
+node app apostrophe-users:add admin admin --site=one
+```
+
+## Staging and production deployment
+
+TODO: deployment scripts.
+
+TODO: content sync scripts.
+
+TODO: automated mechanic/nginx setup script. However you can use mechanic manually to add all of the hostnames and forward them to the same port(s), because a single process (or group of processes, one per core as usual) can serve all of the sites. `apostrophe-multisite` is a proxy in its own right, but you still want `mechanic` handling port 80 and fast static file delivery etc.
+
+## How to run tasks
+
+To run a task for the dashboard site:
+
+```
+node app apostrophe-migrations:migrate --site=dashboard
+```
+
+To run a task for an individual site, by its hostname or _id:
+
+```
+node app apostrophe-migrations:migrate --site=example.com
+```
+
+To run a task for all hosted sites (not the dashboard):
+
+```
+node app apostrophe-migrations:migrate --all-sites
+```
+
+> The `all-sites` option does not work for interactive tasks that prompt for information, like `apostrophe-users:change-password`, or otherwise read from standard input.
+
