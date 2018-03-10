@@ -93,7 +93,7 @@ module.exports = async function(options) {
     return runTaskOnAllSites();
   }
 
-  if (argv._.length) {
+  if (argv.length) {
     throw new Error('To run a command line task you must specify either --all-sites or --site=hostname-or-id. To run a task for the dashboard site specify --site=dashboard');
   }
 
