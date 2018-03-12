@@ -337,7 +337,7 @@ module.exports = async function(options) {
             'apostrophe-attachments': {
               // TODO consider S3 in this context
               uploadfs: {
-                uploadsPath: __dirname + '/public/uploads/' + site._id,
+                uploadsPath: getRootDir() + '/public/uploads/' + site._id,
                 uploadsUrl: '/uploads/' + site._id,
                 tempPath: __dirname + '/data/temp/' + site._id + '/uploadfs'
               }
@@ -417,7 +417,7 @@ module.exports = async function(options) {
             'apostrophe-attachments': {
               // TODO consider S3 in this context
               uploadfs: {
-                uploadsPath: __dirname + '/public/uploads/dashboard',
+                uploadsPath: getRootDir() + '/public/uploads/dashboard',
                 uploadsUrl: '/uploads/dashboard',
                 tempPath: __dirname + '/data/temp/dashboard/uploadfs'
               }
