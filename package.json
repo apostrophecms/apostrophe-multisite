@@ -26,6 +26,7 @@
   },
   "homepage": "https://github.com/apostrophecms/apostrophe-multisite#readme",
   "dependencies": {
+    "boring": "^0.1.0",
     "http-proxy": "^1.16.2",
     "lodash": "^4.17.5",
     "mongodb": "^3.0.2",
