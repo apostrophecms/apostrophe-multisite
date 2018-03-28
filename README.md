@@ -45,6 +45,8 @@ const multi = require('apostrophe-multisite')({
   mongodbUrl: 'mongodb://localhost:27017',
 
   // Hostname of the dashboard site. Distinct from the hosted sites.
+  // May also be a space-separated list, or an array. May be set via
+  // the DASHBOARD_HOSTNAME environment variable.
   dashboardHostname: 'dashboard',
 
   // Session secret. Please use a unique string.

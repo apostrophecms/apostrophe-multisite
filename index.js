@@ -75,9 +75,16 @@ module.exports = async function(options) {
   const app = express();
 
   // Hostname of the dashbord site
-  const dashboardHostname = options.dashboardHostname;
-  if (!dashboardHostname) {
-    throw new Error('You must specify the dashboardHostname option or the DASHBOARD_HOSTNAME environment variable.');
+  if (!options.dashboardHostname) {
+    throw new Error('You must specify the options.dashboardHostname option or the DASHBOARD_HOSTNAME environment variable. The option may be an array, and the environment variable may be space-separated.');
+  }
+  if ((typeof options.dashboardHostname) === 'string') {
+    if (options.dashboardHostname.match(/\s+/)) {
+      options.dashboardHostname = options.dashboardHostname.split(/\s+/);
+    }
+    if (!Array.isArray(options.dashboardHostname)) {
+      options.dashboardHostname = [ options.dashboardHostname ];
+    }
   }
   if (!options.sessionSecret) {
     throw new Error('You must configure the sessionSecret option or set the SESSION_SECRET environment variable.');
@@ -122,7 +129,7 @@ module.exports = async function(options) {
       return next();
     }
     site = matches[1].toLowerCase();
-    if (site !== options.dashboardHostname) {
+    if (!_.includes(options.dashboardHostname, site)) {
       return next();
     }
     try {
