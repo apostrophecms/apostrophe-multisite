@@ -19,7 +19,8 @@ const multi = require('apostrophe-multisite')({
 
   // For speed, make sure a site is live on this many processes,
   // on separate servers when possible. Processes are SHARED
-  // by MANY sites, but setting this high still uses more RAM
+  // by MANY sites, but setting this high still uses more RAM.
+  // Can also be CONCURRENCY_PER_SITE env var
   concurrencyPerSite: 1,
 
   // If we receive no new requests for a site in an hour,
@@ -130,6 +131,24 @@ Each site needs a unique hostname, so you will need to edit `/etc/hosts` much as
 Now you can access `http://dashboard:3000` to visit the dashboard site, or `http://one:3000` to access site `one` (if you actually add a site with that hostname to the dashboard), etc.
 
 A site can have multiple hostnames, so you can accommodate real DNS names for staging and production too, if you are syncing things around. Of course, we need to write sync scripts that can actually handle moving multiple databases for you first.
+
+## Running in production: server-specific settings
+
+Sometimes you'll need to change certain options for production use.
+
+You can use a `data/local.js` file, like this. It **merges automatically with your configuration, do not require the file yourself**:
+
+```javascript
+module.exports = {
+  multisite: {
+    concurrencyPerSite: 5
+  }
+};
+```
+
+You should exclude this file from deployment so it can be different on staging and production servers, as opposed to local dev environments.
+
+Or, you can use environment variables as enumerated above in the example configuration.
 
 ## Creating sites via the dashboard
 

@@ -6,7 +6,11 @@ const quote = require('shell-quote').quote;
 
 module.exports = async function(options) {
 
-  _.defaults(options, {
+  let local = {};
+  if (fs.existsSync(getRootDir() + '/data/local.js')) {
+    local = require(getRootDir() + '/data/local.js').multisite;
+  }
+  _.defaultsDeep(local, options, {
     // At least 2 = failover during forever restarts etc.,
     // also resiliency against server failures if more than
     // one server is provided
@@ -40,6 +44,11 @@ module.exports = async function(options) {
     mongodbUrl: 'mongodb://localhost:27017',
     root: getRoot()
   });
+  options = local;
+
+  if (process.env.CONCURRENCY_PER_SITE) {
+    options.concurrencyPerSite = parseInt(process.env.CONCURRENCY_PER_SITE);
+  }
 
   if (process.env.SERVERS) {
     options.servers = process.env.SERVERS.split(' ');
@@ -510,7 +519,7 @@ module.exports = async function(options) {
   async function runTaskOnAllSites() {
     // Prevent dashboard from attempting to run the task when it wakes up
     const dashboard = await spinUpDashboard({ argv: { _: [] } });
-    var req = dashboard.tasks.getReq();
+    const req = dashboard.tasks.getReq();
     const sites = await dashboard.sites.find(req, {}).toArray();
     const spawn = require('child_process').spawnSync;
     sites.forEach(site => {
@@ -537,7 +546,7 @@ module.exports = async function(options) {
   }
 
   function getRootDir() {
-    var path = require('path');
+    const path = require('path');
     return path.dirname(path.resolve(getRoot().filename));
   }
 
