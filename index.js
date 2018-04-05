@@ -3,6 +3,7 @@ const mongo = require('mongodb');
 const fs = require('fs');
 const argv = require('boring')();
 const quote = require('shell-quote').quote;
+const Promise = require('bluebird');
 
 module.exports = async function(options) {
 
