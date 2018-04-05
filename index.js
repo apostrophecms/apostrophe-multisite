@@ -7,6 +7,7 @@ const quote = require('shell-quote').quote;
 module.exports = async function(options) {
 
   let local = {};
+  let lockDepth = 0;
   if (fs.existsSync(getRootDir() + '/data/local.js')) {
     local = require(getRootDir() + '/data/local.js').multisite;
   }
@@ -83,6 +84,10 @@ module.exports = async function(options) {
   const express = require('express');
   const app = express();
 
+  // Map of site IDs which we are already listening in
+  // this same process (`true`) or are about to be (`pending`)
+  const listening = {};
+
   // Hostname of the dashbord site
   if (!options.dashboardHostname) {
     throw new Error('You must specify the options.dashboardHostname option or the DASHBOARD_HOSTNAME environment variable. The option may be an array, and the environment variable may be space-separated.');
@@ -153,6 +158,7 @@ module.exports = async function(options) {
 
   async function proxyMiddleware(req, res, next) {
 
+    console.log(req.get('Host') + ':' + req.url);
     const sites = dashboard.modules && dashboard.modules.sites;
     let site = req.get('Host');
     const matches = (site || '').match(/^([^\:]+)/);
@@ -162,19 +168,7 @@ module.exports = async function(options) {
     site = matches[1].toLowerCase();
 
     try {
-      site = await dashboard.docs.db.findOne({
-        type: 'site',
-        hostnames: { $in: [ site ] },
-        // For speed and because they can have their own users and permissions
-        // at page level, which works just fine, we do not implement the entire
-        // Apostrophe permissions stack with regard to the site object before
-        // deciding whether to proxy to it.
-        //
-        // However, we do make sure the site is published and not in the trash,
-        // to keep things intuitive for the superadmin.
-        trash: { $ne: true },
-        published: true
-      });
+      site = await getLiveSiteByHostname(site);
       if (!site) {
         return options.orphan(req, res);
       }
@@ -202,7 +196,10 @@ module.exports = async function(options) {
         const keys = Object.keys(site.listeners);
         const winningServer = keys[Math.floor(Math.random() * keys.length)];
         winner = site.listeners[winningServer];
-        const attempt = require('util').promisify(proxy.web.bind(proxy));
+        function proxyRequest(req, res, options, callback) {
+          return proxy.web(req, res, options, callback);
+        }
+        const attempt = require('util').promisify(proxyRequest);
         try {
           log(site, 'proxying to ' + winner);
           await attempt(req, res, { target: 'http://' + winner });
@@ -219,6 +216,11 @@ module.exports = async function(options) {
           });
           delete site.listeners[winningServer];
           site = await spinUpAsNeeded(req, site);
+          if ((req.method !== 'GET') && (req.method !== 'HEAD') && (req.method !== 'OPTIONS')) {
+            // We can't retry a POST request etc. because they have bodies
+            // and those bodies were not buffered for reuse
+            return res.status(500).send('started new server, try again');
+          }
         }
       } while (retried);
     } catch (e) {
@@ -227,16 +229,42 @@ module.exports = async function(options) {
     }
   }
 
+  async function getLiveSiteByHostname(name) {
+    return await dashboard.docs.db.findOne({
+      type: 'site',
+      hostnames: { $in: [ name ] },
+      // For speed and because they can have their own users and permissions
+      // at page level, which works just fine, we do not implement the entire
+      // Apostrophe permissions stack with regard to the site object before
+      // deciding whether to proxy to it.
+      //
+      // However, we do make sure the site is published and not in the trash,
+      // to keep things intuitive for the superadmin.
+      trash: { $ne: true },
+      published: true
+    });
+  }
+
   async function spinUpAsNeeded(req, site) {
     while (Object.keys(site.listeners).length < options.concurrencyPerSite) {
-      site = await spinUp(req, site);
+      await lock();
+      try {
+        // Fetch it again now that we have a lock,
+        // in case it already changed
+        site = await getLiveSiteByHostname(site.hostnames[0]);
+        if (Object.keys(site.listeners).length >= options.concurrencyPerSite) {
+          return site;
+        }
+        site = await spinUp(req, site);
+      } finally {
+        await unlock();
+      }
     }
     return site;
   }
 
   function log(site, msg) {
     const name = (site.hostnames && site.hostnames[0]) || site._id;
-    console.log(name + ': ' + msg);
   }
 
   async function spinUp(req, site) {
@@ -286,26 +314,48 @@ module.exports = async function(options) {
 
   async function spinUpHere(site) {
 
+    if (listening[site._id] === true) {
+      // Race condition got us here but we already are listening
+      return await getLiveSiteByHostname(site.hostnames[0]);
+    }
+
+    if (listening[site._id] === 'pending') {
+      // We will be listening soon
+      await Promise.delay(100);
+      site = await getLiveSiteByHostname(site.hostnames[0]);
+      return await spinUpHere(site);
+    }
+
+    listening[site._id] = 'pending';
+
     log(site, 'Spinning up here...');
 
     // The available free-port-finder modules all have race conditions and
     // no provision for avoiding popular ports like 3000. Pick randomly and
-    // retry if necessary. -Tom
+    // retry if necessary.
 
-    const port = Math.floor(lowPort + Math.random() * totalPorts);
+    await lock();
 
-    const apos = await require('util').promisify(run)(options.sites || {});
+    let port;
+    let apos;
 
-    site.listeners[options.server] = hostnameOnly(options.server) + ':' + port;
-    const $set = {};
-    $set['listeners.' + options.server] = site.listeners[options.server];
-    await dashboard.docs.db.update({
-      _id: site._id
-    }, {
-      $set: $set
-    });
-    
-    return site;
+    try {
+      port = Math.floor(lowPort + Math.random() * totalPorts);
+      apos = await require('util').promisify(run)(options.sites || {});
+      listening[site._id] = true;
+
+      site.listeners[options.server] = hostnameOnly(options.server) + ':' + port;
+      const $set = {};
+      $set['listeners.' + options.server] = site.listeners[options.server];
+      await dashboard.docs.db.update({
+        _id: site._id
+      }, {
+        $set: $set
+      });
+      return site;
+    } finally {
+      await unlock();
+    }
     
     function run(config, callback) {
 
@@ -557,6 +607,20 @@ module.exports = async function(options) {
 
   function hostnameOnly(server) {
     return server.replace(/\:\d+$/, '');
+  }
+
+  async function lock() {
+    if (!lockDepth) {
+      await dashboard.locks.lock('multisite-spinup');
+    }
+    lockDepth++;
+  }
+
+  async function unlock() {
+    lockDepth--;
+    if (!lockDepth) {
+      await dashboard.locks.unlock('multisite-spinup');
+    }
   }
 
 };
