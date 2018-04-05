@@ -107,8 +107,14 @@ module.exports = async function(options) {
   const lowPort = parseInt(process.env.LOW_PORT || '4000');
   const totalPorts = parseInt(process.env.TOTAL_PORTS || '50000');
 
+  let dashboard;
+
   if (argv.site) {
     return runTask();
+  }
+
+  if (argv['temporary-site']) {
+    return runTaskOnTemporarySite();
   }
 
   if (argv['all-sites']) {
@@ -116,10 +122,11 @@ module.exports = async function(options) {
   }
 
   if (argv._.length) {
-    throw new Error('To run a command line task you must specify either --all-sites or --site=hostname-or-id. To run a task for the dashboard site specify --site=dashboard');
+    throw new Error('To run a command line task you must specify --all-sites, --temporary-site, or --site=hostname-or-id. To run a task for the dashboard site specify --site=dashboard');
   }
 
-  const dashboard = await spinUpDashboard();
+  dashboard = await spinUpDashboard();
+
   const proxy = httpProxy.createProxyServer({});
 
   app.use(dashboardMiddleware);
@@ -196,6 +203,7 @@ module.exports = async function(options) {
         retried = false;
         const keys = Object.keys(site.listeners);
         const winningServer = keys[Math.floor(Math.random() * keys.length)];
+        log(site, 'Winning server: ' + winningServer);
         winner = site.listeners[winningServer];
         function proxyRequest(req, res, options, callback) {
           return proxy.web(req, res, options, callback);
@@ -266,6 +274,7 @@ module.exports = async function(options) {
 
   function log(site, msg) {
     const name = (site.hostnames && site.hostnames[0]) || site._id;
+    console.log(name + ': ' + msg);
   }
 
   async function spinUp(req, site) {
@@ -315,7 +324,10 @@ module.exports = async function(options) {
 
   async function spinUpHere(site) {
 
+    log(site, 'Asked to spin up here...');
+
     if (listening[site._id] === true) {
+      log(site, 'Already here...');
       // Race condition got us here but we already are listening
       return await getLiveSiteByHostname(site.hostnames[0]);
     }
@@ -323,6 +335,7 @@ module.exports = async function(options) {
     if (listening[site._id] === 'pending') {
       // We will be listening soon
       await Promise.delay(100);
+      log(site, 'Still pending here...');
       site = await getLiveSiteByHostname(site.hostnames[0]);
       return await spinUpHere(site);
     }
@@ -544,7 +557,7 @@ module.exports = async function(options) {
       // Task will execute, and will exit process on completion
     }
     // Prevent dashboard from attempting to run the task when it wakes up
-    const dashboard = await spinUpDashboard({ argv: { _: [] } });
+    dashboard = await spinUpDashboard({ argv: { _: [] } });
     site = argv.site.toLowerCase();
     site = await dashboard.docs.db.findOne({
       type: 'site',
@@ -567,16 +580,43 @@ module.exports = async function(options) {
     return 'task';
   }
 
-  async function runTaskOnAllSites() {
+  async function runTaskOnTemporarySite() {
+    return runTaskOnAllSites({ temporary: true });
+  }
+
+  async function runTaskOnAllSites(options) {
+    options = options || {};
     // Prevent dashboard from attempting to run the task when it wakes up
-    const dashboard = await spinUpDashboard({ argv: { _: [] } });
+    dashboard = await spinUpDashboard({ argv: { _: [] } });
     const req = dashboard.tasks.getReq();
-    const sites = await dashboard.sites.find(req, {}).toArray();
+    let sites;
+    if (options.temporary) {
+      const site = {
+        title: '** Temporary for Command Line Task',
+        published: false,
+        trash: false,
+        _id: dashboard.utils.generateId()
+      };
+      await dashboard.sites.insert(req, site);
+      sites = [ site ];
+    } else {
+      sites = await dashboard.sites.find(req, {}).toArray();
+    }
     const spawn = require('child_process').spawnSync;
     sites.forEach(site => {
       log(site, 'running task');
-      spawn(process.argv[0], process.argv.slice(1).concat('--site=' + site._id));
+      const result = spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8' });
+      if (result.stdout.length) {
+        console.log(result.stdout);
+      }
+      if (result.stderr.length) {
+        console.error(result.stderr);
+      }
     });
+    if (options.temporary) {
+      console.log('Cleaning up temporary site');
+      await dashboard.docs.db.remove({ _id: sites[0]._id });
+    }
     // Our job to exit since we know the tasks are all complete already
     process.exit(0);
   }
