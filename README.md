@@ -200,7 +200,13 @@ To run a task for all hosted sites (not the dashboard):
 node app apostrophe-migrations:migrate --all-sites
 ```
 
-> The `all-sites` option does not work for interactive tasks that prompt for information, like `apostrophe-users:change-password`, or otherwise read from standard input.
+To run a task on a temporary "hosted" site which will be deleted after the task:
+
+```
+node app apostrophe:generation --temporary-site
+```
+
+> `--temporary-site` is good for generating assets that are shared between the hosted sites, but not the dashboard. Note that `--temporary-site` and `--all-sites` do not work for interactive tasks that prompt for information, like `apostrophe-users:change-password`, or otherwise read from standard input. Currently these options print all output at the end.
 
 ## Code and templates for the hosted sites
 
