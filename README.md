@@ -30,7 +30,7 @@ const multi = require('apostrophe-multisite')({
 
   // We need to know what server/port combos are listening. This will
   // match your setup in mechanic/nginx or other load balancer. Can
-  // also be space-separated in SERVERS env var
+  // also be comma-separated in SERVERS env var
 
   servers: [ 'localhost:3000' ],
 
@@ -46,7 +46,7 @@ const multi = require('apostrophe-multisite')({
   mongodbUrl: 'mongodb://localhost:27017',
 
   // Hostname of the dashboard site. Distinct from the hosted sites.
-  // May also be a space-separated list, or an array. May be set via
+  // May also be a comma-separated list, or an array. May be set via
   // the DASHBOARD_HOSTNAME environment variable.
   dashboardHostname: 'dashboard',
 
@@ -140,15 +140,15 @@ You can use a `data/local.js` file, like this. It **merges automatically with yo
 
 ```javascript
 module.exports = {
-  multisite: {
-    concurrencyPerSite: 5
-  }
+  concurrencyPerSite: 5
 };
 ```
 
 You should exclude this file from deployment so it can be different on staging and production servers, as opposed to local dev environments.
 
-Or, you can use environment variables as enumerated above in the example configuration.
+Your hosted sites share `sites/data/local.js`, and your dashboard site can have `dashboard/data/local.js`. They do not read the top-level `data/local.js`, it is exclusively for the multisite module. All three folders should be excluded from deployment.
+
+**Or, you can use environment variables as enumerated above in the example configuration.** This is the only way to go with a host like Heroku that does not offer persistent storage on the local drive.
 
 ## Creating sites via the dashboard
 
