@@ -10,7 +10,7 @@ module.exports = async function(options) {
   let local = {};
   let lockDepth = 0;
   if (fs.existsSync(getRootDir() + '/data/local.js')) {
-    local = require(getRootDir() + '/data/local.js').multisite;
+    local = require(getRootDir() + '/data/local.js');
   }
   _.defaultsDeep(local, options, {
     // At least 2 = failover during forever restarts etc.,
@@ -53,7 +53,7 @@ module.exports = async function(options) {
   }
 
   if (process.env.SERVERS) {
-    options.servers = process.env.SERVERS.split(' ');
+    options.servers = process.env.SERVERS.split(',');
   }
   if (process.env.SERVER) {
     options.server = process.env.SERVER;
@@ -95,7 +95,7 @@ module.exports = async function(options) {
   }
   if ((typeof options.dashboardHostname) === 'string') {
     if (options.dashboardHostname.match(/\s+/)) {
-      options.dashboardHostname = options.dashboardHostname.split(/\s+/);
+      options.dashboardHostname = options.dashboardHostname.split(',');
     }
     if (!Array.isArray(options.dashboardHostname)) {
       options.dashboardHostname = [ options.dashboardHostname ];
@@ -266,6 +266,7 @@ module.exports = async function(options) {
         }
         site = await spinUp(req, site);
       } finally {
+        console.log('awaiting unlock');
         await unlock();
       }
     }
@@ -348,28 +349,22 @@ module.exports = async function(options) {
     // no provision for avoiding popular ports like 3000. Pick randomly and
     // retry if necessary.
 
-    await lock();
-
     let port;
     let apos;
 
-    try {
-      port = Math.floor(lowPort + Math.random() * totalPorts);
-      apos = await require('util').promisify(run)(options.sites || {});
-      listening[site._id] = true;
+    port = Math.floor(lowPort + Math.random() * totalPorts);
+    apos = await require('util').promisify(run)(options.sites || {});
+    listening[site._id] = true;
 
-      site.listeners[options.server] = hostnameOnly(options.server) + ':' + port;
-      const $set = {};
-      $set['listeners.' + options.server] = site.listeners[options.server];
-      await dashboard.docs.db.update({
-        _id: site._id
-      }, {
-        $set: $set
-      });
-      return site;
-    } finally {
-      await unlock();
-    }
+    site.listeners[options.server] = hostnameOnly(options.server) + ':' + port;
+    const $set = {};
+    $set['listeners.' + options.server] = site.listeners[options.server];
+    await dashboard.docs.db.update({
+      _id: site._id
+    }, {
+      $set: $set
+    });
+    return site;
     
     function run(config, callback) {
 
@@ -393,7 +388,9 @@ module.exports = async function(options) {
             return callback(null, apos);
           },
 
-          modulesSubdir: getRootDir() + '/sites/lib/modules', 
+          rootDir: getRootDir() + '/sites', 
+
+          npmRootDir: getRootDir(),
                
           shortName: options.shortNamePrefix + site._id,
           
@@ -402,7 +399,11 @@ module.exports = async function(options) {
             'apostrophe-db': {
               db: db
             },
-          
+            
+            'apostrophe-i18n': {
+              localesDir: getRootDir() + '/locales'
+            },
+
             'apostrophe-templates': {
               viewsFolderFallback: viewsFolderFallback
             },
@@ -473,11 +474,17 @@ module.exports = async function(options) {
             return callback(null, apos);
           },
 
-          modulesSubdir: getRootDir() + '/dashboard/lib/modules', 
+          rootDir: getRootDir() + '/dashboard', 
+
+          npmRootDir: getRootDir(),
                 
           shortName: options.shortNamePrefix + 'dashboard',
           
           modules: {
+
+            'apostrophe-i18n': {
+              localesDir: getRootDir() + '/locales'
+            },
 
             'apostrophe-db': {
               db: db
@@ -652,15 +659,19 @@ module.exports = async function(options) {
 
   async function lock() {
     if (!lockDepth) {
+      console.log('> locking...');
       await dashboard.locks.lock('multisite-spinup');
+      console.log('locked');
     }
     lockDepth++;
   }
 
   async function unlock() {
+    console.log('unlock invoked');
     lockDepth--;
     if (!lockDepth) {
       await dashboard.locks.unlock('multisite-spinup');
+      console.log('< unlocked');
     }
   }
 
