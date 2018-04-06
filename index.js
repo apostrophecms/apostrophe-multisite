@@ -90,7 +90,7 @@ module.exports = async function(options) {
   const app = express();
 
   // Map of site IDs which we are already listening in
-  // this same process (`true`) or are about to be (`pending`)
+  // this same process (port number) or are about to be (`pending`)
   const listening = {};
 
   // Hostname of the dashbord site
@@ -331,9 +331,20 @@ module.exports = async function(options) {
 
     log(site, 'Asked to spin up here...');
 
-    if (listening[site._id] === true) {
+    if (listening[site._id] && (listening[site._id] !== 'pending')) {
       log(site, 'Already here...');
-      // Race condition got us here but we already are listening
+      // Race condition got us here but we already are listening. Repair
+      // any discrepancy between the database and what we know about ourselves
+      if (!site.listeners[options.server]) {
+        site.listeners[options.server] = hostnameOnly(options.server) + ':' + listening[site._id];
+        const $set = {};
+        $set['listeners.' + options.server] = site.listeners[options.server];
+        await dashboard.docs.db.update({
+          _id: site._id
+        }, {
+          $set: $set
+        });
+      }
       return await getLiveSiteByHostname(site.hostnames[0]);
     }
 
@@ -358,7 +369,6 @@ module.exports = async function(options) {
 
     port = Math.floor(lowPort + Math.random() * totalPorts);
     apos = await require('util').promisify(run)(options.sites || {});
-    listening[site._id] = true;
 
     site.listeners[options.server] = hostnameOnly(options.server) + ':' + port;
     const $set = {};
@@ -368,6 +378,7 @@ module.exports = async function(options) {
     }, {
       $set: $set
     });
+    listening[site._id] = port;
     return site;
     
     function run(config, callback) {
