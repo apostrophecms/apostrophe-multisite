@@ -227,3 +227,7 @@ For instance, you might use the `apostrophe-palette` module, or just use `apostr
 "How can I mirror certain properties between apostrophe-global of individual sites and the `site` piece in the dashboard, so they both can see that stuff?"
 
 TODO.
+
+## Deployment issues
+
+You need to persist `data`, `sites/data`, `dashboard/data`, `sites/public/uploads`, and `dashboard/public/uploads` between deployments. See the [apostrophe-multisite-demo](https://github.com/apostrophecms/apostrophe-multisite-demo) project.
