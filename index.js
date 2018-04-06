@@ -51,6 +51,10 @@ module.exports = async function(options) {
   if (process.env.CONCURRENCY_PER_SITE) {
     options.concurrencyPerSite = parseInt(process.env.CONCURRENCY_PER_SITE);
   }
+  if (options.concurrencyPerSite > options.servers.length) {
+    console.warn('Capping concurrency at the number of server processes: ' + options.servers.length);
+    options.concurrencyPerSite = options.servers.length;
+  }
 
   if (process.env.SERVERS) {
     options.servers = process.env.SERVERS.split(',');
@@ -418,7 +422,7 @@ module.exports = async function(options) {
             'apostrophe-attachments': {
               // TODO consider S3 in this context
               uploadfs: {
-                uploadsPath: getRootDir() + '/public/uploads/' + site._id,
+                uploadsPath: getRootDir() + '/sites/public/uploads/' + site._id,
                 uploadsUrl: '/uploads/' + site._id,
                 tempPath: __dirname + '/data/temp/' + site._id + '/uploadfs'
               }
@@ -504,7 +508,7 @@ module.exports = async function(options) {
             'apostrophe-attachments': {
               // TODO consider S3 in this context
               uploadfs: {
-                uploadsPath: getRootDir() + '/public/uploads/dashboard',
+                uploadsPath: getRootDir() + '/dashboard/public/uploads/dashboard',
                 uploadsUrl: '/uploads/dashboard',
                 tempPath: __dirname + '/data/temp/dashboard/uploadfs'
               }
