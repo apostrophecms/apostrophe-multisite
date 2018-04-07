@@ -135,6 +135,8 @@ You should exclude this file from deployment so it can be different on staging a
 
 **Or, you can use environment variables as enumerated above in the example configuration.** This is the only way to go with a host like Heroku that does not offer persistent storage on the local drive.
 
+> If you simply use a load balancer to point to several processes or servers running `apostrophe-multisite`, you will eventually have `apos` objects live for every site that is accessed in each process. This is fine, generally speaking, but if you have thousands of sites it would make more sense to configure your load balancer to only send site X to servers A, B, and C (to provide some redundancy), and so forth. However that is a load balancer configuration task outside the scope of this module.
+
 ## Creating sites via the dashboard
 
 First you need to be able to log into the dashboard:

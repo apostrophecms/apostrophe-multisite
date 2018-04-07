@@ -144,6 +144,17 @@ module.exports = async function(options) {
   return await listen(parts[1]);
 
   function dashboardMiddleware(req, res, next) {
+    console.log(req.get('Host') + ':' + req.url);
+    let site = req.get('Host');
+    const matches = site.match(/^([^\:]+)/);
+    if (!matches) {
+      return next();
+    }
+    site = matches[1].toLowerCase();
+    if (!_.includes(options.dashboardHostname, site)) {
+      return next();
+    }
+    log(dashboard, 'matches request');
     return dashboard.app(req, res);
   }
 
@@ -162,12 +173,19 @@ module.exports = async function(options) {
       return options.orphan(req, res);
     }
     log(site, 'matches request');
-    async function attempt() {
+    // This would be very simple with await, but for some reason
+    // it gets a premature return value of undefined from spinUp. Shrug.
+    function attempt() {
       if (aposes[site._id] === 'pending') {
-        setTimeout(attempt, 100);
+        console.log('pending, let\'s wait');
+        return setTimeout(attempt, 100);
       } else {
-        if (!apos[site._id]) {
-          aposes[site._id] = await spinUp(site).app;
+        if (!aposes[site._id]) {
+          console.log('awaiting');
+          return spinUp(site).then(function(apos) {
+            aposes[site._id] = apos;
+            return aposes[site._id].app(req, res);
+          });
         }
         return aposes[site._id].app(req, res);
       }
@@ -199,12 +217,13 @@ module.exports = async function(options) {
   async function spinUp(site) {
 
     log(site, 'Spinning up...');
-    apps[site._id] = 'pending';
+    aposes[site._id] = 'pending';
 
     let apos;
+    const runner = Promise.promisify(run);
 
-    apos = await require('util').promisify(run)(options.sites || {});
-
+    apos = await runner(options.sites || {});
+    console.log('apos id is ' + apos._id);
     return apos;
     
     function run(config, callback) {
@@ -220,6 +239,7 @@ module.exports = async function(options) {
 
           afterListen: function() {
             apos._id = site._id;
+            console.log('delivering apos');
             return callback(null, apos);
           },
 
@@ -263,6 +283,7 @@ module.exports = async function(options) {
                 // Don't really listen for connections. We'll run as middleware
                 self.apos.listen = function() {
                   if (self.apos.options.afterListen) {
+                    console.log('invoking afterListen');
                     return self.apos.options.afterListen(null);
                   }                  
                 }
@@ -281,7 +302,7 @@ module.exports = async function(options) {
 
     console.log('Spinning up dashboard site...');
 
-    // TODO: this function has a lot of code in common with spinUpHere.
+    // TODO: this function has a lot of code in common with spinUp.
     // Think about that. Should we support multiple constellations of
     // sites in a single process, and just make the dashboard a specialized
     // constellation at some point?
@@ -435,7 +456,7 @@ module.exports = async function(options) {
     if (!site) {
       throw new Error('There is no such site.');
     }
-    await spinUpHere(site);
+    await spinUp(site);
     // Task will execute, and will exit process on completion
     return 'task';
   }
