@@ -85,13 +85,11 @@ module.exports = async function(options) {
 
   // required on behalf of the application, so it can see the peer dependency
   const apostrophe = require(getNpmPath(options.root, 'apostrophe'));
-  const httpProxy = require('http-proxy');
   const express = require('express');
   const app = express();
 
-  // Map of site IDs which we are already listening in
-  // this same process (port number) or are about to be (`pending`)
-  const listening = {};
+  // apos app objects by site _id
+  const apps = {};
 
   // Hostname of the dashbord site
   if (!options.dashboardHostname) {
@@ -131,11 +129,9 @@ module.exports = async function(options) {
 
   dashboard = await spinUpDashboard();
 
-  const proxy = httpProxy.createProxyServer({});
-
   app.use(dashboardMiddleware);
 
-  app.use(proxyMiddleware);
+  app.use(sitesMiddleware);
 
   const listen = require('util').promisify(app.listen.bind(app));
 
@@ -147,29 +143,11 @@ module.exports = async function(options) {
   console.log('Proxy listening on port ' + parts[1]);
   return await listen(parts[1]);
 
-  async function dashboardMiddleware(req, res, next) {
-    const attempt = require('util').promisify(proxy.web.bind(proxy));
-    let site = req.get('Host');
-    const matches = site.match(/^([^\:]+)/);
-    if (!matches) {
-      return next();
-    }
-    site = matches[1].toLowerCase();
-    if (!_.includes(options.dashboardHostname, site)) {
-      return next();
-    }
-    try {
-      await attempt(req, res, { target: 'http://' + hostnameOnly(options.server) + ':' + dashboard.modules['apostrophe-express'].port });
-    } catch (e) {
-      // Currently a dashboard crash requires a restart of this process
-      // (but you should have more than one process)
-      console.error(e);
-      process.exit(1);
-    }
+  function dashboardMiddleware(req, res, next) {
+    return dashboard.app(req, res);
   }
 
-  async function proxyMiddleware(req, res, next) {
-
+  async function sitesMiddleware(req, res, next) {
     console.log(req.get('Host') + ':' + req.url);
     const sites = dashboard.modules && dashboard.modules.sites;
     let site = req.get('Host');
@@ -179,67 +157,16 @@ module.exports = async function(options) {
     }
     site = matches[1].toLowerCase();
 
-    try {
-      site = await getLiveSiteByHostname(site);
-      if (!site) {
-        return options.orphan(req, res);
-      }
-      log(site, 'matches request');
-      let winner;
-
-      if (req.headers['x-apostrophe-multisite-spinup'] === options.apiKey) {
-        log(site, 'we have been asked to spin it up');
-        if (!site.listeners[options.server]) {
-          log(site, 'it is new on this server');
-          site = await spinUpHere(site);
-          console.log(site);
-        } else {
-          log(site, 'it already exists on this server');
-        }
-        winner = options.server;
-      } else {
-        log(site, 'spinning up if needed');
-        site = await spinUpAsNeeded(req, site);
-      }
-
-      let retried;
-      do {
-        retried = false;
-        const keys = Object.keys(site.listeners);
-        const winningServer = keys[Math.floor(Math.random() * keys.length)];
-        log(site, 'Winning server: ' + winningServer);
-        winner = site.listeners[winningServer];
-        function proxyRequest(req, res, options, callback) {
-          return proxy.web(req, res, options, callback);
-        }
-        const attempt = require('util').promisify(proxyRequest);
-        try {
-          log(site, 'proxying to ' + winner);
-          await attempt(req, res, { target: 'http://' + winner });
-          log(site, 'proxy request succeeded');
-        } catch (e) {
-          log(site, 'proxy request failed, marking as dead listener');
-          retried = true;
-          const $unset = {};
-          $unset['listeners.' + winningServer] = 1;
-          await dashboard.docs.db.update({
-            _id: site._id
-          }, {
-            $unset: $unset
-          });
-          delete site.listeners[winningServer];
-          site = await spinUpAsNeeded(req, site);
-          if ((req.method !== 'GET') && (req.method !== 'HEAD') && (req.method !== 'OPTIONS')) {
-            // We can't retry a POST request etc. because they have bodies
-            // and those bodies were not buffered for reuse
-            return res.status(500).send('started new server, try again');
-          }
-        }
-      } while (retried);
-    } catch (e) {
-      console.error(e);
-      return res.status(500).send('error');
+    site = await getLiveSiteByHostname(site);
+    if (!site) {
+      return options.orphan(req, res);
     }
+    log(site, 'matches request');
+    let winner;
+    if (!apps[site._id]) {
+      apps[site._id] = await spinUp(site);
+    }
+    return apps[site._id](req, res);
   }
 
   async function getLiveSiteByHostname(name) {
@@ -258,73 +185,9 @@ module.exports = async function(options) {
     });
   }
 
-  async function spinUpAsNeeded(req, site) {
-    while (Object.keys(site.listeners).length < options.concurrencyPerSite) {
-      await lock();
-      try {
-        // Fetch it again now that we have a lock,
-        // in case it already changed
-        site = await getLiveSiteByHostname(site.hostnames[0]);
-        if (Object.keys(site.listeners).length >= options.concurrencyPerSite) {
-          return site;
-        }
-        site = await spinUp(req, site);
-      } finally {
-        console.log('awaiting unlock');
-        await unlock();
-      }
-    }
-    return site;
-  }
-
   function log(site, msg) {
     const name = (site.hostnames && site.hostnames[0]) || site._id;
     console.log(name + ': ' + msg);
-  }
-
-  async function spinUp(req, site) {
-    log(site, 'spinning up somewhere...');
-    // Where should it be spun up?
-    // Preference for a separate physical server
-    const keys = Object.keys(site.listeners);
-    let server = options.servers.find(server => {
-      return !keys.find(listener => {
-        return hostnameOnly(listener) === hostnameOnly(server);
-      });
-    });
-    if (server) {
-      log(site, 'remote server chosen: ' + server);
-    }
-    if (!server) {
-      // Settle for a different core
-      server = options.servers.find(server => {
-        return !keys.find(listener => {
-          return listener === server;
-        });
-      });
-      log(site, 'local server chosen: ' + server);
-    }
-    if (!server) {
-      // It is already spun up everywhere
-      log(site, 'already spun up everywhere');
-      return site;
-    }
-    if (server === options.server) {
-      return spinUpHere(site);
-    } else {
-      return spinUpThere(req, site, server);
-    }
-  }
-
-  async function spinUpThere(req, site, server) {
-    log(site, 'Asking a peer to spin it up...');
-    // Make it as if this header was always there. Less weird than
-    // using the proxy events. -Tom
-    req.headers['x-apostrophe-multisite-spinup'] = options.apiKey;
-    req.rawHeaders.push('X-Apostrophe-Multisite-Spinup', options.apiKey);
-    const attempt = require('util').promisify(proxy.web.bind(proxy));
-    log(site, 'proxying to ' + server);
-    return attempt(req, req.res, { target: 'http://' + server });
   }
 
   async function spinUpHere(site) {
