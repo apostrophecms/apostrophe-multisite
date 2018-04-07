@@ -17,26 +17,10 @@ const multi = require('apostrophe-multisite')({
   // Make it unique and secure, do not use this value
   apiKey: 'CHANGE-ME',
 
-  // For speed, make sure a site is live on this many processes,
-  // on separate servers when possible. Processes are SHARED
-  // by MANY sites, but setting this high still uses more RAM.
-  // Can also be CONCURRENCY_PER_SITE env var
-  concurrencyPerSite: 1,
-
   // If we receive no new requests for a site in an hour,
   // let that apos object go, freeing up RAM in exchange for
   // a little extra spinup time on the next request
   timeout: 60 * 60,
-
-  // We need to know what server/port combos are listening. This will
-  // match your setup in mechanic/nginx or other load balancer. Can
-  // also be comma-separated in SERVERS env var
-
-  servers: [ 'localhost:3000' ],
-
-  // ... And which server we are. Can also be set
-  // via SERVER env var  
-  server: 'localhost:3000',
 
   shortNamePrefix: process.env.SHORTNAME_PREFIX || 'multisite-',
 
@@ -140,13 +124,14 @@ You can use a `data/local.js` file, like this. It **merges automatically with yo
 
 ```javascript
 module.exports = {
-  concurrencyPerSite: 5
+  mongodbUrl: 'mongodb://somewhere-else:27017',
+  dashboardHostname: [ 'dashboard-prod.myservice.com' ]
 };
 ```
 
 You should exclude this file from deployment so it can be different on staging and production servers, as opposed to local dev environments.
 
-Your hosted sites share `sites/data/local.js`, and your dashboard site can have `dashboard/data/local.js`. They do not read the top-level `data/local.js`, it is exclusively for the multisite module. All three folders should be excluded from deployment.
+> Your hosted sites share `sites/data/local.js`, and your dashboard site can have `dashboard/data/local.js`. They do not read the top-level `data/local.js`, it is exclusively for the multisite module. All three folders should be excluded from deployment.
 
 **Or, you can use environment variables as enumerated above in the example configuration.** This is the only way to go with a host like Heroku that does not offer persistent storage on the local drive.
 
@@ -162,6 +147,8 @@ Now log into `http://dashboard:3000`.
 
 Then, go to the admin bar, pick "Sites", and add a site, giving it one of the hostnames you added to `/etc/hosts`. Let's say the hostname is `one`.
 
+> Remember that you'll need to add staging and production hostnames here too at some point.
+
 Now you can access:
 
 `http://one:3000`
@@ -174,11 +161,9 @@ node app apostrophe-users:add admin admin --site=one
 
 ## Staging and production deployment
 
-TODO: deployment scripts.
+See the [apostrophe-multisite-demo](https://github.com/apostrophecms/apostrophe-multisite-demo) project for stagecoach deployment scripts, and content sync scripts.
 
-TODO: content sync scripts.
-
-TODO: automated mechanic/nginx setup script. However you can use mechanic manually to add all of the hostnames and forward them to the same port(s), because a single process (or group of processes, one per core as usual) can serve all of the sites. `apostrophe-multisite` is a proxy in its own right, but you still want `mechanic` handling port 80 and fast static file delivery etc.
+Load-balance between cores and/or servers in the usual way, we typically do it with nginx and mechanic. You will want to make sure this nginx `server` block is set as the default so it gets the traffic for all the sites being added.
 
 ## How to run tasks
 
