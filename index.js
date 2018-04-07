@@ -88,8 +88,8 @@ module.exports = async function(options) {
   const express = require('express');
   const app = express();
 
-  // apos app objects by site _id
-  const apps = {};
+  // apos objects by site _id
+  const aposes = {};
 
   // Hostname of the dashbord site
   if (!options.dashboardHostname) {
@@ -162,11 +162,17 @@ module.exports = async function(options) {
       return options.orphan(req, res);
     }
     log(site, 'matches request');
-    let winner;
-    if (!apps[site._id]) {
-      apps[site._id] = await spinUp(site);
+    async function attempt() {
+      if (aposes[site._id] === 'pending') {
+        setTimeout(attempt, 100);
+      } else {
+        if (!apos[site._id]) {
+          aposes[site._id] = await spinUp(site).app;
+        }
+        return aposes[site._id].app(req, res);
+      }
     }
-    return apps[site._id](req, res);
+    await attempt();
   }
 
   async function getLiveSiteByHostname(name) {
@@ -190,59 +196,16 @@ module.exports = async function(options) {
     console.log(name + ': ' + msg);
   }
 
-  async function spinUpHere(site) {
+  async function spinUp(site) {
 
-    log(site, 'Asked to spin up here...');
+    log(site, 'Spinning up...');
+    apps[site._id] = 'pending';
 
-    if (listening[site._id] && (listening[site._id] !== 'pending')) {
-      log(site, 'Already here...');
-      // Race condition got us here but we already are listening. Repair
-      // any discrepancy between the database and what we know about ourselves
-      if (!site.listeners[options.server]) {
-        site.listeners[options.server] = hostnameOnly(options.server) + ':' + listening[site._id];
-        const $set = {};
-        $set['listeners.' + options.server] = site.listeners[options.server];
-        await dashboard.docs.db.update({
-          _id: site._id
-        }, {
-          $set: $set
-        });
-      }
-      return await getLiveSiteByHostname(site.hostnames[0]);
-    }
-
-    if (listening[site._id] === 'pending') {
-      // We will be listening soon
-      await Promise.delay(100);
-      log(site, 'Still pending here...');
-      site = await getLiveSiteByHostname(site.hostnames[0]);
-      return await spinUpHere(site);
-    }
-
-    listening[site._id] = 'pending';
-
-    log(site, 'Spinning up here...');
-
-    // The available free-port-finder modules all have race conditions and
-    // no provision for avoiding popular ports like 3000. Pick randomly and
-    // retry if necessary.
-
-    let port;
     let apos;
 
-    port = Math.floor(lowPort + Math.random() * totalPorts);
     apos = await require('util').promisify(run)(options.sites || {});
 
-    site.listeners[options.server] = hostnameOnly(options.server) + ':' + port;
-    const $set = {};
-    $set['listeners.' + options.server] = site.listeners[options.server];
-    await dashboard.docs.db.update({
-      _id: site._id
-    }, {
-      $set: $set
-    });
-    listening[site._id] = port;
-    return site;
+    return apos;
     
     function run(config, callback) {
 
@@ -255,13 +218,7 @@ module.exports = async function(options) {
 
         _.merge({
 
-          afterListen: function(err) {
-            if (err) {
-              // It's chill, try again until we get a free port.
-              return apos.destroy(function() {
-                return run(config, callback);
-              });
-            }
+          afterListen: function() {
             apos._id = site._id;
             return callback(null, apos);
           },
@@ -289,8 +246,7 @@ module.exports = async function(options) {
             'apostrophe-express': {
               session: {
                 secret: options.sessionSecret
-              },
-              forcePort: port
+              }
             },
             
             'apostrophe-attachments': {
@@ -298,7 +254,18 @@ module.exports = async function(options) {
               uploadfs: {
                 uploadsPath: getRootDir() + '/sites/public/uploads/' + site._id,
                 uploadsUrl: '/uploads/' + site._id,
-                tempPath: __dirname + '/data/temp/' + site._id + '/uploadfs'
+                tempPath: getRootDir() + '/sites/data/temp/' + site._id + '/uploadfs'
+              }
+            },
+
+            'apostrophe-multisite-fake-listener': {
+              construct: function(self, options) {
+                // Don't really listen for connections. We'll run as middleware
+                self.apos.listen = function() {
+                  if (self.apos.options.afterListen) {
+                    return self.apos.options.afterListen(null);
+                  }                  
+                }
               }
             }
           }
@@ -319,13 +286,8 @@ module.exports = async function(options) {
     // sites in a single process, and just make the dashboard a specialized
     // constellation at some point?
 
-    // The available free-port-finder modules all have race conditions and
-    // no provision for avoiding popular ports like 3000. Pick randomly and
-    // retry if necessary. -Tom
-
-    const port = Math.floor(lowPort + Math.random() * totalPorts);
-
     const finalConfig = _.merge({}, options.dashboard || {}, config);
+    console.log('running...');
     const apos = await require('util').promisify(run)(finalConfig);
     
     return apos;
@@ -342,6 +304,7 @@ module.exports = async function(options) {
         _.merge({
 
           afterListen: function(err) {
+            console.log('in afterListen');
             if (err) {
               // It's chill, try again until we get a free port.
               return apos.destroy(function() {
@@ -375,8 +338,7 @@ module.exports = async function(options) {
             'apostrophe-express': {
               session: {
                 secret: options.sessionSecret
-              },
-              forcePort: port
+              }
             },
             
             'apostrophe-attachments': {
@@ -384,7 +346,21 @@ module.exports = async function(options) {
               uploadfs: {
                 uploadsPath: getRootDir() + '/dashboard/public/uploads/dashboard',
                 uploadsUrl: '/uploads/dashboard',
-                tempPath: __dirname + '/data/temp/dashboard/uploadfs'
+                tempPath: getRootDir() + '/data/temp/dashboard/uploadfs'
+              }
+            },
+
+            'apostrophe-multisite-fake-listener': {
+              construct: function(self, options) {
+                console.log('installing fake listener');
+                // Don't really listen for connections. We'll run as middleware
+                self.apos.listen = function() {
+                  console.log('checking');
+                  if (self.apos.options.afterListen) {
+                    console.log('faking');
+                    return self.apos.options.afterListen(null);
+                  }                  
+                }
               }
             },
 
@@ -417,7 +393,6 @@ module.exports = async function(options) {
                   doc.hostnames = _.map(doc.hostnamesArray || [], function(value) {
                     return value.hostname.toLowerCase().trim();
                   });
-                  doc.listeners = doc.listeners || {};
                   return callback(null);
                 };
               }
