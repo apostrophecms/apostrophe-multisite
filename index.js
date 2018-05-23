@@ -6,6 +6,44 @@ const quote = require('shell-quote').quote;
 const Promise = require('bluebird');
 
 module.exports = async function(options) {
+  let self = {};
+  // apos objects by site _id
+  const aposes = {};
+
+  // Public API
+
+  // Returns a promise for an `apos` object for the given site
+  // based on its `_id` in the dashboard.
+
+  self.getSiteApos = async function(siteOrId) {
+    let site = siteOrId;
+    if ((typeof siteOrId) === 'string') {
+      site = {
+        _id: siteOrId
+      };
+    }
+    function body(callback) {
+      // This would be very simple with await, but for some reason
+      // it gets a premature return value of undefined from spinUp. Shrug.
+      function attempt() {
+        if (aposes[site._id] === 'pending') {
+          setTimeout(attempt, 100);
+        } else {
+          if (!aposes[site._id]) {
+            return spinUp(site).then(function(apos) {
+              aposes[site._id] = apos;
+              return callback(null, aposes[site._id]);
+            });
+          }
+          return callback(null, aposes[site._id]);
+        }
+      }
+      attempt();
+    }
+    return Promise.promisify(body)();
+  }
+
+  // Implementation
 
   let local = {};
   let lockDepth = 0;
@@ -88,9 +126,6 @@ module.exports = async function(options) {
   const express = require('express');
   const app = express();
 
-  // apos objects by site _id
-  const aposes = {};
-
   // Hostname of the dashbord site
   if (!options.dashboardHostname) {
     throw new Error('You must specify the options.dashboardHostname option or the DASHBOARD_HOSTNAME environment variable. The option may be an array, and the environment variable may be space-separated.');
@@ -144,7 +179,7 @@ module.exports = async function(options) {
   return await listen(parts[1]);
 
   function dashboardMiddleware(req, res, next) {
-    console.log(req.get('Host') + ':' + req.url);
+    // console.log(req.get('Host') + ':' + req.url);
     let site = req.get('Host');
     const matches = site.match(/^([^\:]+)/);
     if (!matches) {
@@ -154,12 +189,12 @@ module.exports = async function(options) {
     if (!_.includes(options.dashboardHostname, site)) {
       return next();
     }
-    log(dashboard, 'matches request');
+    // log(dashboard, 'matches request');
     return dashboard.app(req, res);
   }
 
   async function sitesMiddleware(req, res, next) {
-    console.log(req.get('Host') + ':' + req.url);
+    // console.log(req.get('Host') + ':' + req.url);
     const sites = dashboard.modules && dashboard.modules.sites;
     let site = req.get('Host');
     const matches = (site || '').match(/^([^\:]+)/);
@@ -172,25 +207,8 @@ module.exports = async function(options) {
     if (!site) {
       return options.orphan(req, res);
     }
-    log(site, 'matches request');
-    // This would be very simple with await, but for some reason
-    // it gets a premature return value of undefined from spinUp. Shrug.
-    function attempt() {
-      if (aposes[site._id] === 'pending') {
-        console.log('pending, let\'s wait');
-        return setTimeout(attempt, 100);
-      } else {
-        if (!aposes[site._id]) {
-          console.log('awaiting');
-          return spinUp(site).then(function(apos) {
-            aposes[site._id] = apos;
-            return aposes[site._id].app(req, res);
-          });
-        }
-        return aposes[site._id].app(req, res);
-      }
-    }
-    await attempt();
+    // log(site, 'matches request');
+    (await self.getSiteApos(site)).app(req, res);
   }
 
   async function getLiveSiteByHostname(name) {
@@ -217,13 +235,13 @@ module.exports = async function(options) {
   async function spinUp(site) {
 
     log(site, 'Spinning up...');
+    console.log(site);
     aposes[site._id] = 'pending';
 
     let apos;
     const runner = Promise.promisify(run);
 
     apos = await runner(options.sites || {});
-    console.log('apos id is ' + apos._id);
     return apos;
     
     function run(config, callback) {
@@ -237,9 +255,10 @@ module.exports = async function(options) {
 
         _.merge({
 
+          multisite: self,
+
           afterListen: function() {
             apos._id = site._id;
-            console.log('delivering apos');
             return callback(null, apos);
           },
 
@@ -283,7 +302,6 @@ module.exports = async function(options) {
                 // Don't really listen for connections. We'll run as middleware
                 self.apos.listen = function() {
                   if (self.apos.options.afterListen) {
-                    console.log('invoking afterListen');
                     return self.apos.options.afterListen(null);
                   }                  
                 }
@@ -308,7 +326,6 @@ module.exports = async function(options) {
     // constellation at some point?
 
     const finalConfig = _.merge({}, options.dashboard || {}, config);
-    console.log('running...');
     const apos = await require('util').promisify(run)(finalConfig);
     
     return apos;
@@ -324,8 +341,9 @@ module.exports = async function(options) {
 
         _.merge({
 
+          multisite: self,
+
           afterListen: function(err) {
-            console.log('in afterListen');
             if (err) {
               // It's chill, try again until we get a free port.
               return apos.destroy(function() {
@@ -373,12 +391,9 @@ module.exports = async function(options) {
 
             'apostrophe-multisite-fake-listener': {
               construct: function(self, options) {
-                console.log('installing fake listener');
                 // Don't really listen for connections. We'll run as middleware
                 self.apos.listen = function() {
-                  console.log('checking');
                   if (self.apos.options.afterListen) {
-                    console.log('faking');
                     return self.apos.options.afterListen(null);
                   }                  
                 }
@@ -410,12 +425,7 @@ module.exports = async function(options) {
                 ].concat(options.addFields || []);
               },
               construct: function(self, options) {
-                self.beforeSave = function(req, doc, options, callback) {
-                  doc.hostnames = _.map(doc.hostnamesArray || [], function(value) {
-                    return value.hostname.toLowerCase().trim();
-                  });
-                  return callback(null);
-                };
+                require('./lib/sites-base.js')(self, options);
               }
             },
 
@@ -533,19 +543,15 @@ module.exports = async function(options) {
 
   async function lock() {
     if (!lockDepth) {
-      console.log('> locking...');
       await dashboard.locks.lock('multisite-spinup');
-      console.log('locked');
     }
     lockDepth++;
   }
 
   async function unlock() {
-    console.log('unlock invoked');
     lockDepth--;
     if (!lockDepth) {
       await dashboard.locks.unlock('multisite-spinup');
-      console.log('< unlocked');
     }
   }
 
