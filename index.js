@@ -235,7 +235,6 @@ module.exports = async function(options) {
   async function spinUp(site) {
 
     log(site, 'Spinning up...');
-    console.log(site);
     aposes[site._id] = 'pending';
 
     let apos;
