@@ -17,11 +17,6 @@ const multi = require('apostrophe-multisite')({
   // Make it unique and secure, do not use this value
   apiKey: 'CHANGE-ME',
 
-  // If we receive no new requests for a site in an hour,
-  // let that apos object go, freeing up RAM in exchange for
-  // a little extra spinup time on the next request
-  timeout: 60 * 60,
-
   shortNamePrefix: process.env.SHORTNAME_PREFIX || 'multisite-',
 
   // MongoDB URL for database connection. If you have multiple physical

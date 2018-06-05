@@ -51,10 +51,6 @@ module.exports = async function(options) {
     local = require(getRootDir() + '/data/local.js');
   }
   _.defaultsDeep(local, options, {
-    // At least 2 = failover during forever restarts etc.,
-    // also resiliency against server failures if more than
-    // one server is provided
-    concurrencyPerSite: 2,
     // Space-separated list of all servers being load balanced
     // by nginx, including multiple instances on the same physical server
     // listening on different ports. Like:
@@ -85,14 +81,6 @@ module.exports = async function(options) {
     root: getRoot()
   });
   options = local;
-
-  if (process.env.CONCURRENCY_PER_SITE) {
-    options.concurrencyPerSite = parseInt(process.env.CONCURRENCY_PER_SITE);
-  }
-  if (options.concurrencyPerSite > options.servers.length) {
-    console.warn('Capping concurrency at the number of server processes: ' + options.servers.length);
-    options.concurrencyPerSite = options.servers.length;
-  }
 
   if (process.env.SERVERS) {
     options.servers = process.env.SERVERS.split(',');
@@ -189,7 +177,7 @@ module.exports = async function(options) {
     if (!_.includes(options.dashboardHostname, site)) {
       return next();
     }
-    // log(dashboard, 'matches request');
+    log(dashboard, 'matches request');
     return dashboard.app(req, res);
   }
 
@@ -207,7 +195,7 @@ module.exports = async function(options) {
     if (!site) {
       return options.orphan(req, res);
     }
-    // log(site, 'matches request');
+    log(site, 'matches request');
     (await self.getSiteApos(site)).app(req, res);
   }
 
