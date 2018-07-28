@@ -158,10 +158,10 @@ module.exports = async function(options) {
 
   const listen = require('util').promisify(app.listen.bind(app));
 
-  if (process.env.PORT != null) {
+  if (process.env.PORT !== undefined) {
     console.log('Proxy listening on port ' + process.env.PORT);
     return await listen(process.env.PORT;
-  } else if (options.port != null) {
+  } else if (options.port !== undefined) {
     console.log('Proxy listening on port ' + options.port);
     return await listen(options.port);
   } else {
