@@ -13,6 +13,9 @@ Hint: use `nvm` if you aren't ready to change to node 8 in your dev environment.
 ```javascript
 const multi = require('apostrophe-multisite')({
 
+  // Port to listen on, or set the `PORT` env var (which Heroku will do for you)
+  port: 3000,
+
   // An API key is required for interserver communication.
   // Make it unique and secure, do not use this value
   apiKey: 'CHANGE-ME',
