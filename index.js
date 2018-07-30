@@ -51,18 +51,8 @@ module.exports = async function(options) {
     local = require(getRootDir() + '/data/local.js');
   }
   _.defaultsDeep(local, options, {
-    // Space-separated list of all servers being load balanced
-    // by nginx, including multiple instances on the same physical server
-    // listening on different ports. Like:
-    //
-    // 10.1.1.10:3000 10.1.1.10:3001 10.1.1.11:3000 10.1.1.11:3001 ...
-    //
-    // Default assumption is you have just one on localhost (which is a bad idea,
-    // you should run more, ideally across physical servers).
-    servers: [ 'localhost:3000' ],
-    // THIS server, in the same format as above, so it can distinguish
-    // itself from the rest
-    server: 'localhost:3000',
+    // Listen on this port unless the PORT env var is set
+    port: 3000,
     // Express route executed if a request comes in for a hostname that
     // is not present in the sites database
     orphan: function(req, res) {
@@ -82,10 +72,8 @@ module.exports = async function(options) {
   });
   options = local;
 
-  if (process.env.SERVERS) {
-    options.servers = process.env.SERVERS.split(',');
-  }
   if (process.env.SERVER) {
+    // Legacy, process.env.PORT is plenty for our needs
     options.server = process.env.SERVER;
   }
   if (process.env.SESSION_SECRET) {
@@ -158,19 +146,20 @@ module.exports = async function(options) {
 
   const listen = require('util').promisify(app.listen.bind(app));
 
-  if (process.env.PORT !== undefined) {
-    console.log('Proxy listening on port ' + process.env.PORT);
-    return await listen(process.env.PORT;
-  } else if (options.port !== undefined) {
-    console.log('Proxy listening on port ' + options.port);
-    return await listen(options.port);
-  } else {
+  if (process.env.PORT) {
+    options.port = parseInt(process.env.PORT);
+  }
+  if (options.server) {
+    // Legacy
     const parts = options.server.split(':');
     if ((!parts) || (parts < 2)) {
       throw new Error('server option or SERVER environment variable is badly formed, must be address:port');
     }
     console.log('Proxy listening on port ' + parts[1]);
     return await listen(parts[1]);
+  } else {
+    console.log('Proxy listening on port ' + options.port);
+    return await listen(options.port);
   }
 
   function dashboardMiddleware(req, res, next) {
