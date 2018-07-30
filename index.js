@@ -158,13 +158,20 @@ module.exports = async function(options) {
 
   const listen = require('util').promisify(app.listen.bind(app));
 
-  const parts = options.server.split(':');
-  if ((!parts) || (parts < 2)) {
-    throw new Error('server option or SERVER environment variable is badly formed, must be address:port');
+  if (process.env.PORT !== undefined) {
+    console.log('Proxy listening on port ' + process.env.PORT);
+    return await listen(process.env.PORT;
+  } else if (options.port !== undefined) {
+    console.log('Proxy listening on port ' + options.port);
+    return await listen(options.port);
+  } else {
+    const parts = options.server.split(':');
+    if ((!parts) || (parts < 2)) {
+      throw new Error('server option or SERVER environment variable is badly formed, must be address:port');
+    }
+    console.log('Proxy listening on port ' + parts[1]);
+    return await listen(parts[1]);
   }
-
-  console.log('Proxy listening on port ' + parts[1]);
-  return await listen(parts[1]);
 
   function dashboardMiddleware(req, res, next) {
     // console.log(req.get('Host') + ':' + req.url);
