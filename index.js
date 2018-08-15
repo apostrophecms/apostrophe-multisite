@@ -212,8 +212,10 @@ module.exports = async function(options) {
   }
 
   function log(site, msg) {
-    const name = (site.hostnames && site.hostnames[0]) || site._id;
-    console.log(name + ': ' + msg);
+    if (process.env.VERBOSE) {
+      const name = (site.hostnames && site.hostnames[0]) || site._id;
+      console.log(name + ': ' + msg);
+    }
   }
 
   async function spinUp(site) {
@@ -272,10 +274,10 @@ module.exports = async function(options) {
             },
             
             'apostrophe-attachments': {
-              // TODO consider S3 in this context
               uploadfs: {
-                uploadsPath: getRootDir() + '/sites/public/uploads/' + site._id,
-                uploadsUrl: '/uploads/' + site._id,
+                prefix: '/' + site._id,
+                uploadsPath: getRootDir() + '/sites/public/uploads',
+                uploadsUrl: '/uploads',
                 tempPath: getRootDir() + '/sites/data/temp/' + site._id + '/uploadfs'
               }
             },
@@ -301,7 +303,7 @@ module.exports = async function(options) {
 
   async function spinUpDashboard(config) {
 
-    console.log('Spinning up dashboard site...');
+    log({ _id: 'dashboard' }, 'Spinning up dashboard site...');
 
     // TODO: this function has a lot of code in common with spinUp.
     // Think about that. Should we support multiple constellations of
@@ -309,6 +311,7 @@ module.exports = async function(options) {
     // constellation at some point?
 
     const finalConfig = _.merge({}, options.dashboard || {}, config);
+    
     const apos = await require('util').promisify(run)(finalConfig);
     
     return apos;
@@ -345,6 +348,19 @@ module.exports = async function(options) {
           
           modules: {
 
+            'apostrophe-assets': {
+              construct: function(self, options) {
+                // Make it possible to disable the asset build so it doesn't
+                // take up time and change the asset generation if we're just
+                // running a task for another site, a situation in which we
+                // only need the dashboard in order to access the db containing
+                // that site
+                if (options.disabled) {
+                  self.afterInit = function() {};
+                }
+              }
+            },
+
             'apostrophe-i18n': {
               localesDir: getRootDir() + '/locales'
             },
@@ -364,10 +380,10 @@ module.exports = async function(options) {
             },
             
             'apostrophe-attachments': {
-              // TODO consider S3 in this context
               uploadfs: {
-                uploadsPath: getRootDir() + '/dashboard/public/uploads/dashboard',
-                uploadsUrl: '/uploads/dashboard',
+                prefix: '/dashboard',
+                uploadsPath: getRootDir() + '/dashboard/public/uploads',
+                uploadsUrl: '/uploads',
                 tempPath: getRootDir() + '/data/temp/dashboard/uploadfs'
               }
             },
@@ -430,8 +446,20 @@ module.exports = async function(options) {
       return 'task';
       // Task will execute, and will exit process on completion
     }
-    // Prevent dashboard from attempting to run the task when it wakes up
-    dashboard = await spinUpDashboard({ argv: { _: [] } });
+    // Prevent dashboard from attempting to run the task when it wakes up,
+    // also prevent it from causing problems for another instance in dev
+    // that has already built dashboard assets. All we want from it is access
+    // to the database of other sites
+    dashboard = await spinUpDashboard(
+      { 
+        argv: { _: [] },
+        modules: {
+          'apostrophe-assets': {
+            disabled: true
+          }
+        }
+      }
+    );
     site = argv.site.toLowerCase();
     site = await dashboard.docs.db.findOne({
       type: 'site',

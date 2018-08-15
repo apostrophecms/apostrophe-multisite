@@ -90,12 +90,8 @@ const multi = require('apostrophe-multisite')({
     }
   }
 }).then(function(result) {
-  if (result === 'task') {
-    console.log('Running task...');
-  } else {
-    // top level await is not a thing, so handle the promise
-    console.log('Running...');
-  }
+  // There is no top level await so we catch this here.
+  // At this point either the task is running or the site is up.
 }).catch(function(err) {
   console.error(err);
   process.exit(1);
@@ -213,6 +209,27 @@ For instance, you might use the `apostrophe-palette` module, or just use `apostr
 
 TODO.
 
+## Using AWS (or Azure, etc.)
+
+You can achieve this by passing [uploadfs](https://github.com/punkave/uploadfs) settings to the `apostrophe-attachments` module for both `dashboard` and `sites`, or just set these environment variables when running the application:
+
+```
+APOS_S3_BUCKET YOUR-bucket-name
+APOS_S3_SECRET YOUR-s3-secret
+APOS_S3_KEY YOUR-s3-key
+APOS_S3_REGION YOUR-chosen-region
+```
+
+`apostrophe-multisite` will automatically add a distinct prefix to the paths for each individual site's assets.
+
 ## Deployment issues
 
 You need to persist `data`, `sites/data`, `dashboard/data`, `sites/public/uploads`, and `dashboard/public/uploads` between deployments. See the [apostrophe-multisite-demo](https://github.com/apostrophecms/apostrophe-multisite-demo) project.
+
+## Logging
+
+To log information to the console about each request, set the `VERBOSE` environment variable. For instance:
+
+```
+VERBOSE=1 node app
+```
