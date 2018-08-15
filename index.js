@@ -309,6 +309,7 @@ module.exports = async function(options) {
     // constellation at some point?
 
     const finalConfig = _.merge({}, options.dashboard || {}, config);
+    
     const apos = await require('util').promisify(run)(finalConfig);
     
     return apos;
@@ -344,6 +345,19 @@ module.exports = async function(options) {
           shortName: options.shortNamePrefix + 'dashboard',
           
           modules: {
+
+            'apostrophe-assets': {
+              construct: function(self, options) {
+                // Make it possible to disable the asset build so it doesn't
+                // take up time and change the asset generation if we're just
+                // running a task for another site, a situation in which we
+                // only need the dashboard in order to access the db containing
+                // that site
+                if (options.disabled) {
+                  self.afterInit = function() {};
+                }
+              }
+            },
 
             'apostrophe-i18n': {
               localesDir: getRootDir() + '/locales'
@@ -430,8 +444,20 @@ module.exports = async function(options) {
       return 'task';
       // Task will execute, and will exit process on completion
     }
-    // Prevent dashboard from attempting to run the task when it wakes up
-    dashboard = await spinUpDashboard({ argv: { _: [] } });
+    // Prevent dashboard from attempting to run the task when it wakes up,
+    // also prevent it from causing problems for another instance in dev
+    // that has already built dashboard assets. All we want from it is access
+    // to the database of other sites
+    dashboard = await spinUpDashboard(
+      { 
+        argv: { _: [] },
+        modules: {
+          'apostrophe-assets': {
+            disabled: true
+          }
+        }
+      }
+    );
     site = argv.site.toLowerCase();
     site = await dashboard.docs.db.findOne({
       type: 'site',
