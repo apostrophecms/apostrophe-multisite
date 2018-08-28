@@ -7,6 +7,7 @@ const Promise = require('bluebird');
 
 module.exports = async function(options) {
   let self = {};
+  let beforeSiteId; // created site id variable.
   // apos objects by site _id
   const aposes = {};
 
@@ -29,7 +30,8 @@ module.exports = async function(options) {
         if (aposes[site._id] === 'pending') {
           setTimeout(attempt, 100);
         } else {
-          if (!aposes[site._id]) {
+          if (!aposes[site._id] || beforeSiteId != site._id) { // Added new Query  siteID != site._id
+            beforeSiteId = site._id;
             return spinUp(site).then(function(apos) {
               aposes[site._id] = apos;
               return callback(null, aposes[site._id]);
