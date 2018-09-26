@@ -291,11 +291,39 @@ module.exports = async function(options) {
                   }                  
                 }
               }
+            },
+
+            'apostrophe-multisite-patch-assets': {
+              construct: function(self, options) {
+                // At least one site has already started up, which means
+                // assets have already been attended to. Steal its
+                // asset generation identifier so they don't fight.
+                // We're not too late because apostrophe-assets doesn't
+                // use this information until afterInit
+                const sample = getSampleSite();
+                if (!sample) {
+                  return;
+                }
+                self.apos.assets.generation = sample.assets.generation;
+              }
             }
           }
         }, config)
       );
     }
+  }
+
+  // Return a sample site that is already spun up, if there are any.
+  // Useful for reusing resources that would otherwise be
+  // redundantly generated at startup
+
+  function getSampleSite() {
+    const keys = _.keys(aposes);
+    if (!keys.length) {
+      return null;
+    }
+    // Find the first one that isn't a status string like "pending"
+    return _.find(aposes, apos => (typeof apos) === 'object');
   }
 
   // config object is optional and is merged last with the options
