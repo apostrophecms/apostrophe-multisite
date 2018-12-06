@@ -205,6 +205,18 @@ For instance, you might use the `apostrophe-palette` module, or just use `apostr
 
 TODO.
 
+## Is there a way to customize per-site configuration as if they had their own `app.js`?
+
+Yes. If the `sites` option is a function rather than an object, it is invoked with the `site` object, and must return an object.
+
+This allows you to take the properties of the dashboard’s `site` object into account when the site “spins up.”
+
+In addition, any time a `site` piece is saved in the dashboard, all existing `apos` objects for that site are invalidated, meaning that they will be created anew on the next web request. This allows the `options.sites` function to take the new properties of `site` into account.
+
+This can be used to achieve effects such as passing a new list of locales to `apostrophe-workflow` based on user input in the dashboard.
+
+Note that this means the `site` object should not be updated frequently or for trivial reasons via Apostrophe’s `update` method — only when significant configuration changes occur. However, note that it is never a good idea in any case to implement a hit counter via Apostrophe’s model layer methods. As always, use a direct MongoDB `update` with `$inc` for such purposes.
+
 ## Using AWS (or Azure, etc.)
 
 You can achieve this by passing [uploadfs](https://github.com/punkave/uploadfs) settings to the `apostrophe-attachments` module for both `dashboard` and `sites`, or just set these environment variables when running the application:

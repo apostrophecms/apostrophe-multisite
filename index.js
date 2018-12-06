@@ -9,23 +9,39 @@ module.exports = async function(options) {
   let self = {};
   // apos objects by site _id
   const aposes = {};
+  const aposCreatedAt = {};
 
   // Public API
 
   // Returns a promise for an `apos` object for the given site
-  // based on its `_id` in the dashboard.
+  // based on its `site` object in the dashboard.
 
   self.getSiteApos = async function(siteOrId) {
     let site = siteOrId;
     if ((typeof siteOrId) === 'string') {
-      site = {
-        _id: siteOrId
-      };
-    }
+      site = await dashboard.docs.db.findOne({
+      type: 'site',
+      _id: siteOrId,
+      // For speed and because they can have their own users and permissions
+      // at page level, which works just fine, we do not implement the entire
+      // Apostrophe permissions stack with regard to the site object before
+      // deciding whether to proxy to it.
+      //
+      // However, we do make sure the site is published and not in the trash,
+      // to keep things intuitive for the superadmin.
+      trash: { $ne: true },
+      published: true
+    });
     function body(callback) {
       // This would be very simple with await, but for some reason
       // it gets a premature return value of undefined from spinUp. Shrug.
       function attempt() {
+        if (aposes[site._id] && (aposCreatedAt[site._id] < site.updatedAt)) {
+          // apos object is older than site's configuration
+          const apos = aposes[site._id];
+          aposes[site._id] = null;
+          return apos.destroy(function() {});
+        }
         if (aposes[site._id] === 'pending') {
           setTimeout(attempt, 100);
         } else {
@@ -225,8 +241,13 @@ module.exports = async function(options) {
 
     let apos;
     const runner = Promise.promisify(run);
-
-    apos = await runner(options.sites || {});
+    let siteOptions;
+    if ((typeof options.sites) === 'function') {
+      siteOptions = options.sites(site);
+    } else {
+      siteOptions = options.sites || {};
+    }
+    apos = await runner(siteOptions);
     return apos;
     
     function run(config, callback) {
@@ -291,39 +312,11 @@ module.exports = async function(options) {
                   }                  
                 }
               }
-            },
-
-            'apostrophe-multisite-patch-assets': {
-              construct: function(self, options) {
-                // At least one site has already started up, which means
-                // assets have already been attended to. Steal its
-                // asset generation identifier so they don't fight.
-                // We're not too late because apostrophe-assets doesn't
-                // use this information until afterInit
-                const sample = getSampleSite();
-                if (!sample) {
-                  return;
-                }
-                self.apos.assets.generation = sample.assets.generation;
-              }
             }
           }
         }, config)
       );
     }
-  }
-
-  // Return a sample site that is already spun up, if there are any.
-  // Useful for reusing resources that would otherwise be
-  // redundantly generated at startup
-
-  function getSampleSite() {
-    const keys = _.keys(aposes);
-    if (!keys.length) {
-      return null;
-    }
-    // Find the first one that isn't a status string like "pending"
-    return _.find(aposes, apos => (typeof apos) === 'object');
   }
 
   // config object is optional and is merged last with the options
