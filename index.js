@@ -20,18 +20,20 @@ module.exports = async function(options) {
     let site = siteOrId;
     if ((typeof siteOrId) === 'string') {
       site = await dashboard.docs.db.findOne({
-      type: 'site',
-      _id: siteOrId,
-      // For speed and because they can have their own users and permissions
-      // at page level, which works just fine, we do not implement the entire
-      // Apostrophe permissions stack with regard to the site object before
-      // deciding whether to proxy to it.
-      //
-      // However, we do make sure the site is published and not in the trash,
-      // to keep things intuitive for the superadmin.
-      trash: { $ne: true },
-      published: true
-    });
+        type: 'site',
+        _id: siteOrId,
+        // For speed and because they can have their own users and permissions
+        // at page level, which works just fine, we do not implement the entire
+        // Apostrophe permissions stack with regard to the site object before
+        // deciding whether to proxy to it.
+        //
+        // However, we do make sure the site is published and not in the trash,
+        // to keep things intuitive for the superadmin.
+        trash: { $ne: true },
+        published: true
+      });
+    }
+    return Promise.promisify(body)();
     function body(callback) {
       // This would be very simple with await, but for some reason
       // it gets a premature return value of undefined from spinUp. Shrug.
@@ -56,7 +58,6 @@ module.exports = async function(options) {
       }
       attempt();
     }
-    return Promise.promisify(body)();
   }
 
   // Implementation
@@ -312,11 +313,39 @@ module.exports = async function(options) {
                   }                  
                 }
               }
+            },
+
+            'apostrophe-multisite-patch-assets': {
+              construct: function(self, options) {
+                // At least one site has already started up, which means
+                // assets have already been attended to. Steal its
+                // asset generation identifier so they don't fight.
+                // We're not too late because apostrophe-assets doesn't
+                // use this information until afterInit
+                const sample = getSampleSite();
+                if (!sample) {
+                  return;
+                }
+                self.apos.assets.generation = sample.assets.generation;
+              }
             }
           }
         }, config)
       );
     }
+  }
+
+  // Return a sample site that is already spun up, if there are any.
+  // Useful for reusing resources that would otherwise be
+  // redundantly generated at startup
+
+  function getSampleSite() {
+    const keys = _.keys(aposes);
+    if (!keys.length) {
+      return null;
+    }
+    // Find the first one that isn't a status string like "pending"
+    return _.find(aposes, apos => (typeof apos) === 'object');
   }
 
   // config object is optional and is merged last with the options
@@ -588,4 +617,3 @@ module.exports = async function(options) {
   }
 
 };
-
