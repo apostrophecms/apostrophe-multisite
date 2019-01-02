@@ -157,6 +157,8 @@ module.exports = async function(options) {
 
   dashboard = await spinUpDashboard();
 
+  app.use(simpleUrlMiddleware);
+
   app.use(dashboardMiddleware);
 
   app.use(sitesMiddleware);
@@ -212,6 +214,15 @@ module.exports = async function(options) {
     (await self.getSiteApos(site)).app(req, res);
   }
 
+  function simpleUrlMiddleware(req, res, next) {
+    // In development, using a .pac file is a convenient way to
+    // direct all traffic for .multi test hostnames through
+    // localhost:3000. However, this makes `req.url` an absolute
+    // URL, which Apostrophe does not expect. Remove the host
+    req.url = require('url').parse(req.url).path;
+    return next();
+  }
+
   async function getLiveSiteByHostname(name) {
     return await dashboard.docs.db.findOne({
       type: 'site',
@@ -231,7 +242,6 @@ module.exports = async function(options) {
   function log(site, msg) {
     if (process.env.VERBOSE) {
       const name = (site.hostnames && site.hostnames[0]) || site._id;
-      console.log(name + ': ' + msg);
     }
   }
 
