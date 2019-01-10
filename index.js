@@ -168,6 +168,9 @@ module.exports = async function(options) {
   if (process.env.PORT) {
     options.port = parseInt(process.env.PORT);
   }
+
+  janitor();
+
   if (options.server) {
     // Legacy
     const parts = options.server.split(':');
@@ -623,6 +626,37 @@ module.exports = async function(options) {
     lockDepth--;
     if (!lockDepth) {
       await dashboard.locks.unlock('multisite-spinup');
+    }
+  }
+
+  // Periodically free apos objects allocated to serve sites that
+  // are no longer visible or no longer exist
+
+  function janitor() {
+    setInterval(sweep, 60000);
+    async function sweep() {
+      const ids = Object.keys(aposes);
+      if (!ids.length) {
+        return;
+      }
+      let sites = await dashboard.docs.db.find({
+        type: 'site',
+        _id: { $in: ids },
+        trash: { $ne: true },
+        published: true
+      }, {
+        _id: 1
+      });
+      sites = sites.map(site => site._id);
+      const missing = _.difference(ids, sites);
+      missing.forEach(id => {
+        const apos = aposes[id];
+        if ((typeof apos) !== 'object') {
+          return;
+        }
+        apos.destroy(function() {});
+        delete aposes[id];
+      });
     }
   }
 
