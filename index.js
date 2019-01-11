@@ -15,8 +15,12 @@ module.exports = async function(options) {
 
   // Returns a promise for an `apos` object for the given site
   // based on its `site` object in the dashboard.
+  //
+  // If present, `options` is merged with the options object
+  // passed to initialize Apostrophe. This argument is typically
+  // used to prevent `argv` from being reused.
 
-  self.getSiteApos = async function(siteOrId) {
+  self.getSiteApos = async function(siteOrId, options) {
     let site = siteOrId;
     if ((typeof siteOrId) === 'string') {
       site = await dashboard.docs.db.findOne({
@@ -42,13 +46,16 @@ module.exports = async function(options) {
           // apos object is older than site's configuration
           const apos = aposes[site._id];
           aposes[site._id] = null;
-          return apos.destroy(function() {});
+          return apos.destroy(function() {
+            // Don't forget to try again
+            attempt();
+          });
         }
         if (aposes[site._id] === 'pending') {
           setTimeout(attempt, 100);
         } else {
           if (!aposes[site._id]) {
-            return spinUp(site).then(function(apos) {
+            return spinUp(site, options).then(function(apos) {
               aposes[site._id] = apos;
               return callback(null, aposes[site._id]);
             });
@@ -248,7 +255,11 @@ module.exports = async function(options) {
     }
   }
 
-  async function spinUp(site) {
+  // If present, `_options` is merged with the options object
+  // passed to initialize Apostrophe. This argument is typically
+  // used to prevent `argv` from being reused.
+
+  async function spinUp(site, _options) {
 
     log(site, 'Spinning up...');
     aposes[site._id] = 'pending';
@@ -261,6 +272,10 @@ module.exports = async function(options) {
     } else {
       siteOptions = options.sites || {};
     }
+    siteOptions = {
+      ...siteOptions,
+      ..._options
+    };
     apos = await runner(siteOptions);
     return apos;
     
@@ -646,7 +661,7 @@ module.exports = async function(options) {
         published: true
       }, {
         _id: 1
-      });
+      }).toArray();
       sites = sites.map(site => site._id);
       const missing = _.difference(ids, sites);
       missing.forEach(id => {
