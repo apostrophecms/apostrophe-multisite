@@ -277,6 +277,7 @@ module.exports = async function(options) {
       ..._options
     };
     apos = await runner(siteOptions);
+
     return apos;
     
     function run(config, callback) {
@@ -286,14 +287,22 @@ module.exports = async function(options) {
         viewsFolderFallback = undefined;
       }
 
+      if (options['apostrophe-multisite'] && options['apostrophe-multisite'].env) {
+        let envBaseUrlName = options['apostrophe-multisite'].env + 'BaseUrl';
+        baseUrl = site[envBaseUrlName] || 'baseUrl-not-set';
+      }
+
       const apos = apostrophe(
 
         _.merge({
 
           multisite: self,
 
+          baseUrl: baseUrl,
+
           afterListen: function() {
             apos._id = site._id;
+
             return callback(null, apos);
           },
 
@@ -498,6 +507,24 @@ module.exports = async function(options) {
                         help: 'All valid hostnames for the site must be on this list, for instance both example.com and www.example.com'
                       }
                     ]
+                  },
+                  {
+                    name: 'devBaseUrl',
+                    label: 'Development Base URL',
+                    help: 'like http://localhost:3000',
+                    type: 'url'
+                  },
+                  {
+                    name: 'stagingBaseUrl',
+                    label: 'Staging Base URL',
+                    help: 'like http://project.staging.org',
+                    type: 'url'
+                  },
+                  {
+                    name: 'prodBaseUrl',
+                    label: 'Production Base URL',
+                    help: 'like https://myproject.com',
+                    type: 'url'
                   }
                 ].concat(options.addFields || []);
               },
