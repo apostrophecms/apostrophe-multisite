@@ -112,6 +112,9 @@ module.exports = async function(options) {
   if (process.env.DASHBOARD_HOSTNAME) {
     options.dashboardHostname = process.env.DASHBOARD_HOSTNAME;
   }
+  if (process.env.ENV) {
+    options.env = process.env.ENV;
+  }
   
   // All sites running under this process share a mongodb connection object
   const db = await mongo.MongoClient.connect(options.mongodbUrl, {
@@ -287,9 +290,10 @@ module.exports = async function(options) {
         viewsFolderFallback = undefined;
       }
 
-      if (options['apostrophe-multisite'] && options['apostrophe-multisite'].env) {
-        let envBaseUrlName = options['apostrophe-multisite'].env + 'BaseUrl';
-        baseUrl = site[envBaseUrlName] || 'baseUrl-not-set';
+      let baseUrl = 'baseUrl-not-set';
+
+      if (options.env) {
+        baseUrl = site[options.env + 'BaseUrl'];
       }
 
       const apos = apostrophe(
