@@ -112,6 +112,9 @@ module.exports = async function(options) {
   if (process.env.DASHBOARD_HOSTNAME) {
     options.dashboardHostname = process.env.DASHBOARD_HOSTNAME;
   }
+  if (process.env.ENV) {
+    options.env = process.env.ENV;
+  }
   
   // All sites running under this process share a mongodb connection object
   const db = await mongo.MongoClient.connect(options.mongodbUrl, {
@@ -277,6 +280,7 @@ module.exports = async function(options) {
       ..._options
     };
     apos = await runner(siteOptions);
+
     return apos;
     
     function run(config, callback) {
@@ -286,14 +290,23 @@ module.exports = async function(options) {
         viewsFolderFallback = undefined;
       }
 
+      let baseUrl = 'baseUrl-not-set';
+
+      if (options.env && site[options.env + 'BaseUrl']) {
+        baseUrl = site[options.env + 'BaseUrl'];
+      }
+
       const apos = apostrophe(
 
         _.merge({
 
           multisite: self,
 
+          baseUrl: baseUrl,
+
           afterListen: function() {
             apos._id = site._id;
+
             return callback(null, apos);
           },
 
@@ -498,6 +511,24 @@ module.exports = async function(options) {
                         help: 'All valid hostnames for the site must be on this list, for instance both example.com and www.example.com'
                       }
                     ]
+                  },
+                  {
+                    name: 'devBaseUrl',
+                    label: 'Development Base URL',
+                    help: 'like http://localhost:3000',
+                    type: 'url'
+                  },
+                  {
+                    name: 'stagingBaseUrl',
+                    label: 'Staging Base URL',
+                    help: 'like http://project.staging.org',
+                    type: 'url'
+                  },
+                  {
+                    name: 'prodBaseUrl',
+                    label: 'Production Base URL',
+                    help: 'like https://myproject.com',
+                    type: 'url'
                   }
                 ].concat(options.addFields || []);
               },
