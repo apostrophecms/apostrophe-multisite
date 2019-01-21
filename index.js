@@ -292,7 +292,7 @@ module.exports = async function(options) {
 
       let baseUrl = 'baseUrl-not-set';
 
-      if (options.env) {
+      if (options.env && site[options.env + 'BaseUrl']) {
         baseUrl = site[options.env + 'BaseUrl'];
       }
 
