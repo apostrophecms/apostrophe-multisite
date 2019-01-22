@@ -241,3 +241,22 @@ To log information to the console about each request, set the `VERBOSE` environm
 ```
 VERBOSE=1 node app
 ```
+
+## Setting `baseUrl` and naming environments
+
+By default, `sites` come with three url fields in their schema that correspond to three server environments: `dev`, `staging`, and `prod`. From the Dashboard, you are able to set the `baseUrl` property of each site within each environment. To let `apostrophe-multisite` know what environment it is currently running in, add the property `env` to your server's `data/local.js` file.
+
+```
+module.exports = {
+  env: 'prod'
+}
+```
+
+Or add it as an environment variable when starting up your app.
+
+`ENV=prod node app.js`
+
+You can create your own environment names by adding url fields to your `sites` piece type and naming them like this:
+
+`myEnvBaseUrl` or `staging2BaseUrl`
+
