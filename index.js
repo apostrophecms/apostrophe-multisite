@@ -9,7 +9,7 @@ module.exports = async function(options) {
   let self = {};
   // apos objects by site _id
   const aposes = {};
-  const aposCreatedAt = {};
+  const aposUpdatedAt = {};
 
   // Public API
 
@@ -42,7 +42,11 @@ module.exports = async function(options) {
       // This would be very simple with await, but for some reason
       // it gets a premature return value of undefined from spinUp. Shrug.
       function attempt() {
-        if (aposes[site._id] && (aposCreatedAt[site._id] < site.updatedAt)) {
+        if (aposes[site._id] === 'pending') {
+          setTimeout(attempt, 100);
+          return;
+        }
+        if (aposes[site._id] && (aposUpdatedAt[site._id] < site.updatedAt)) {
           // apos object is older than site's configuration
           const apos = aposes[site._id];
           aposes[site._id] = null;
@@ -51,17 +55,14 @@ module.exports = async function(options) {
             attempt();
           });
         }
-        if (aposes[site._id] === 'pending') {
-          setTimeout(attempt, 100);
-        } else {
-          if (!aposes[site._id]) {
-            return spinUp(site, options).then(function(apos) {
-              aposes[site._id] = apos;
-              return callback(null, aposes[site._id]);
-            });
-          }
-          return callback(null, aposes[site._id]);
+        if (!aposes[site._id]) {
+          return spinUp(site, options).then(function(apos) {
+            aposUpdatedAt[site._id] = site.updatedAt;
+            aposes[site._id] = apos;
+            return callback(null, aposes[site._id]);
+          });
         }
+        return callback(null, aposes[site._id]);
       }
       attempt();
     }
