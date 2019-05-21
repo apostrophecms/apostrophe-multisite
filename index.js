@@ -305,12 +305,6 @@ module.exports = async function(options) {
 
           baseUrl: baseUrl,
 
-          afterListen: function() {
-            apos._id = site._id;
-
-            return callback(null, apos);
-          },
-
           rootDir: getRootDir() + '/sites', 
 
           npmRootDir: getRootDir(),
@@ -318,6 +312,13 @@ module.exports = async function(options) {
           shortName: options.shortNamePrefix + site._id,
           
           modules: {
+
+            'capture-id': {
+              construct: function(self, options) {
+                // Capture the site id early enough that tasks can see it
+                self.apos._id = site._id;
+              }
+            },
 
             'apostrophe-db': {
               db: db
@@ -371,6 +372,7 @@ module.exports = async function(options) {
                 self.apos.assets.generation = sample.assets.generation;
               }
             }
+
           }
         }, config)
       );
