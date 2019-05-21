@@ -66,7 +66,7 @@ module.exports = async function(options) {
       }
       attempt();
     }
-  }
+  };
 
   // Implementation
 
@@ -116,7 +116,7 @@ module.exports = async function(options) {
   if (process.env.ENV) {
     options.env = process.env.ENV;
   }
-  
+
   // All sites running under this process share a mongodb connection object
   const db = await mongo.MongoClient.connect(options.mongodbUrl, {
     autoReconnect: true,
@@ -256,6 +256,7 @@ module.exports = async function(options) {
   function log(site, msg) {
     if (process.env.VERBOSE) {
       const name = (site.hostnames && site.hostnames[0]) || site._id;
+      console.log(name + ': ' + msg);
     }
   }
 
@@ -283,7 +284,7 @@ module.exports = async function(options) {
     apos = await runner(siteOptions);
 
     return apos;
-    
+
     function run(config, callback) {
 
       let viewsFolderFallback = getRootDir() + '/sites/views';
@@ -308,22 +309,22 @@ module.exports = async function(options) {
           rootDir: getRootDir() + '/sites', 
 
           npmRootDir: getRootDir(),
-               
+
           shortName: options.shortNamePrefix + site._id,
-          
+
           modules: {
 
             'capture-id': {
               construct: function(self, options) {
                 // Capture the site id early enough that tasks can see it
-                self.apos._id = site._id;
+                apos._id = site._id;
               }
             },
 
             'apostrophe-db': {
               db: db
             },
-            
+
             'apostrophe-i18n': {
               localesDir: getRootDir() + '/locales'
             },
@@ -337,7 +338,7 @@ module.exports = async function(options) {
                 secret: options.sessionSecret
               }
             },
-            
+
             'apostrophe-attachments': {
               uploadfs: {
                 prefix: '/' + site._id,
@@ -353,8 +354,8 @@ module.exports = async function(options) {
                 self.apos.listen = function() {
                   if (self.apos.options.afterListen) {
                     return self.apos.options.afterListen(null);
-                  }                  
-                }
+                  }
+                };
               }
             },
 
@@ -405,11 +406,11 @@ module.exports = async function(options) {
     // constellation at some point?
 
     const finalConfig = _.merge({}, options.dashboard || {}, config);
-    
+
     const apos = await require('util').promisify(run)(finalConfig);
-    
+
     return apos;
-    
+
     function run(config, callback) {
 
       let viewsFolderFallback = getRootDir() + '/dashboard/views';
@@ -434,12 +435,12 @@ module.exports = async function(options) {
             return callback(null, apos);
           },
 
-          rootDir: getRootDir() + '/dashboard', 
+          rootDir: getRootDir() + '/dashboard',
 
           npmRootDir: getRootDir(),
-                
+
           shortName: options.shortNamePrefix + 'dashboard',
-          
+
           modules: {
 
             'apostrophe-assets': {
@@ -462,7 +463,7 @@ module.exports = async function(options) {
             'apostrophe-db': {
               db: db
             },
-          
+
             'apostrophe-templates': {
               viewsFolderFallback: viewsFolderFallback
             },
@@ -472,7 +473,7 @@ module.exports = async function(options) {
                 secret: options.sessionSecret
               }
             },
-            
+
             'apostrophe-attachments': {
               uploadfs: {
                 prefix: '/dashboard',
@@ -488,8 +489,8 @@ module.exports = async function(options) {
                 self.apos.listen = function() {
                   if (self.apos.options.afterListen) {
                     return self.apos.options.afterListen(null);
-                  }                  
-                }
+                  }
+                };
               }
             },
 
@@ -548,7 +549,7 @@ module.exports = async function(options) {
           }
         }, config)
       );
-    }      
+    }
   }
 
   async function runTask() {
@@ -563,7 +564,7 @@ module.exports = async function(options) {
     // that has already built dashboard assets. All we want from it is access
     // to the database of other sites
     dashboard = await spinUpDashboard(
-      { 
+      {
         argv: { _: [] },
         modules: {
           'apostrophe-assets': {
