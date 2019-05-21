@@ -302,6 +302,10 @@ module.exports = async function(options) {
 
         _.merge({
 
+          afterListen: function() {
+            return callback(null, apos);
+          },
+
           multisite: self,
 
           baseUrl: baseUrl,
