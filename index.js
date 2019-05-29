@@ -616,6 +616,7 @@ module.exports = async function(options) {
         trash: false,
         _id: dashboard.utils.generateId()
       };
+      console.log(site);
       await dashboard.sites.insert(req, site);
       sites = [ site ];
     } else {
@@ -624,13 +625,7 @@ module.exports = async function(options) {
     const spawn = require('child_process').spawnSync;
     sites.forEach(site => {
       log(site, 'running task');
-      const result = spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8' });
-      if (result.stdout.length) {
-        console.log(result.stdout);
-      }
-      if (result.stderr.length) {
-        console.error(result.stderr);
-      }
+      spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8', stdio: 'inherit' });
     });
     if (options.temporary) {
       console.log('Cleaning up temporary site');
