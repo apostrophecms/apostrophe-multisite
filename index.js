@@ -350,7 +350,8 @@ module.exports = async function(options) {
                 prefix: '/' + site._id,
                 uploadsPath: getRootDir() + '/sites/public/uploads',
                 uploadsUrl: '/uploads',
-                tempPath: getRootDir() + '/sites/data/temp/' + site._id + '/uploadfs'
+                tempPath: getRootDir() + '/sites/data/temp/' + site._id + '/uploadfs',
+                https: true
               }
             },
 
