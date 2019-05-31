@@ -4,6 +4,8 @@ const fs = require('fs');
 const argv = require('boring')();
 const quote = require('shell-quote').quote;
 const Promise = require('bluebird');
+const uploadfs = require('uploadfs');
+const mkdirp = require('mkdirp');
 
 module.exports = async function(options) {
   let self = {};
@@ -369,6 +371,55 @@ module.exports = async function(options) {
                 // so they don't fail to see that a bundle has already been
                 // generated via a temporary site during deployment
                 self.apos.assets.generationCollection = dashboard.db.collection('sitesAssetGeneration');
+                // Use a separate uploadfs instance for assets, so that the
+                // sites share assets but not attachments
+
+                self.apos.assets.uploadfs = function() {
+                  return self.uploadfs;
+                };
+
+                self.initUploadfs = function(callback) {
+                  self.uploadfs = require('uploadfs')();
+                  const uploadfsDefaultSettings = {
+                    backend: 'local',
+                    prefix: '/shared-assets',
+                    uploadsPath: getRootDir() + '/sites/public/uploads',
+                    uploadsUrl: '/uploads',
+                    tempPath: getRootDir() + '/sites/data/temp/shared-assets/uploadfs'
+                  };
+
+                  self.uploadfsSettings = {};
+                  _.merge(self.uploadfsSettings, uploadfsDefaultSettings);
+                  _.merge(self.uploadfsSettings, options.uploadfs || {});
+
+                  if (process.env.APOS_S3_BUCKET) {
+                    _.merge(self.uploadfsSettings, {
+                      backend: 's3',
+                      endpoint: process.env.APOS_S3_ENDPOINT,
+                      secret: process.env.APOS_S3_SECRET,
+                      key: process.env.APOS_S3_KEY,
+                      bucket: process.env.APOS_S3_BUCKET,
+                      region: process.env.APOS_S3_REGION
+                    });
+                  }
+
+                  safeMkdirp(self.uploadfsSettings.uploadsPath);
+                  safeMkdirp(self.uploadfsSettings.tempPath);
+                  self.uploadfs = uploadfs();
+                  self.uploadfs.init(self.uploadfsSettings, callback);
+                  function safeMkdirp(path) {
+                    try {
+                      mkdirp.sync(path);
+                    } catch (e) {
+                      if (require('fs').existsSync(path)) {
+                        // race condition in mkdirp but all is well
+                      } else {
+                        throw e;
+                      }
+                    }
+                  }
+                };
+
                 // For dev: at least one site has already started up, which
                 // means assets have already been attended to. Steal its
                 // asset generation identifier so they don't fight.
@@ -379,9 +430,12 @@ module.exports = async function(options) {
                   return;
                 }
                 self.apos.assets.generation = sample.assets.generation;
+              },
+
+              afterConstruct: function(self, callback) {
+                return self.initUploadfs(callback);
               }
             }
-
           }
         }, config)
       );
