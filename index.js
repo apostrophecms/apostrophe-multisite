@@ -562,7 +562,6 @@ module.exports = async function(options) {
   }
 
   async function runTask() {
-    console.log('IN RUNTASK');
     // Running an apostrophe task for a specific site
     if (argv.site === 'dashboard') {
       await spinUpDashboard();
