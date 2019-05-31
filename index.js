@@ -368,7 +368,7 @@ module.exports = async function(options) {
                 // The sites should share a collection for this purpose,
                 // so they don't fail to see that a bundle has already been
                 // generated via a temporary site during deployment
-                self.apos.assets.generationCollection = db.collection('sitesAssetGeneration');
+                self.apos.assets.generationCollection = dashboard.db.collection('sitesAssetGeneration');
                 // For dev: at least one site has already started up, which
                 // means assets have already been attended to. Steal its
                 // asset generation identifier so they don't fight.
@@ -460,6 +460,7 @@ module.exports = async function(options) {
                 // that site
                 if (options.disabled) {
                   self.afterInit = function() {};
+                  self.determineGenerationAndExtract = function() {};
                 }
               }
             },
@@ -561,6 +562,7 @@ module.exports = async function(options) {
   }
 
   async function runTask() {
+    console.log('IN RUNTASK');
     // Running an apostrophe task for a specific site
     if (argv.site === 'dashboard') {
       await spinUpDashboard();
@@ -609,8 +611,16 @@ module.exports = async function(options) {
 
   async function runTaskOnAllSites(options) {
     options = options || {};
-    // Prevent dashboard from attempting to run the task when it wakes up
-    dashboard = await spinUpDashboard({ argv: { _: [] } });
+    // Prevent dashboard from attempting to run the task or touch assets
+    // when it wakes up
+    dashboard = await spinUpDashboard({
+      argv: { _: [] },
+      modules: {
+        'apostrophe-assets': {
+          disabled: true
+        }
+      }
+    });
     const req = dashboard.tasks.getReq();
     let sites;
     if (options.temporary) {
