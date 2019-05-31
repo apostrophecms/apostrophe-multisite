@@ -365,8 +365,12 @@ module.exports = async function(options) {
 
             'apostrophe-multisite-patch-assets': {
               construct: function(self, options) {
-                // At least one site has already started up, which means
-                // assets have already been attended to. Steal its
+                // The sites should share a collection for this purpose,
+                // so they don't fail to see that a bundle has already been
+                // generated via a temporary site during deployment
+                self.apos.assets.generationCollection = db.collection('sitesAssetGeneration');
+                // For dev: at least one site has already started up, which
+                // means assets have already been attended to. Steal its
                 // asset generation identifier so they don't fight.
                 // We're not too late because apostrophe-assets doesn't
                 // use this information until afterInit
@@ -616,7 +620,6 @@ module.exports = async function(options) {
         trash: false,
         _id: dashboard.utils.generateId()
       };
-      console.log(site);
       await dashboard.sites.insert(req, site);
       sites = [ site ];
     } else {
@@ -628,7 +631,6 @@ module.exports = async function(options) {
       spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8', stdio: 'inherit' });
     });
     if (options.temporary) {
-      console.log('Cleaning up temporary site');
       await dashboard.docs.db.remove({ _id: sites[0]._id });
     }
     // Our job to exit since we know the tasks are all complete already
