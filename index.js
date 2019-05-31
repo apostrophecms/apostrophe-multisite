@@ -399,7 +399,8 @@ module.exports = async function(options) {
                       secret: process.env.APOS_S3_SECRET,
                       key: process.env.APOS_S3_KEY,
                       bucket: process.env.APOS_S3_BUCKET,
-                      region: process.env.APOS_S3_REGION
+                      region: process.env.APOS_S3_REGION,
+                      https: true
                     });
                   }
 
