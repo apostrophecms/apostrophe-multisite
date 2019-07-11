@@ -310,7 +310,7 @@ module.exports = async function(options) {
 
           baseUrl: baseUrl,
 
-          rootDir: getRootDir() + '/sites', 
+          rootDir: getRootDir() + '/sites',
 
           npmRootDir: getRootDir(),
 
@@ -537,6 +537,19 @@ module.exports = async function(options) {
                     label: 'Production Base URL',
                     help: 'like https://myproject.com',
                     type: 'url'
+                  }
+                ].concat(options.addFields || []);
+
+                options.arrangeFields = [
+                  {
+                    name: 'multisite',
+                    label: 'Multisite',
+                    fields: [
+                      'hostnamesArray',
+                      'devBaseUrl',
+                      'stagingBaseUrl',
+                      'prodBaseUrl'
+                    ]
                   }
                 ].concat(options.addFields || []);
               },
