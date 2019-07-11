@@ -551,7 +551,7 @@ module.exports = async function(options) {
                       'prodBaseUrl'
                     ]
                   }
-                ].concat(options.addFields || []);
+                ].concat(options.arrangeFields || []);
               },
               construct: function(self, options) {
                 require('./lib/sites-base.js')(self, options);
