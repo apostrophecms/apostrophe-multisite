@@ -310,7 +310,7 @@ module.exports = async function(options) {
 
           baseUrl: baseUrl,
 
-          rootDir: getRootDir() + '/sites', 
+          rootDir: getRootDir() + '/sites',
 
           npmRootDir: getRootDir(),
 
@@ -539,6 +539,19 @@ module.exports = async function(options) {
                     type: 'url'
                   }
                 ].concat(options.addFields || []);
+
+                options.arrangeFields = [
+                  {
+                    name: 'urls',
+                    label: 'URLs',
+                    fields: [
+                      'hostnamesArray',
+                      'devBaseUrl',
+                      'stagingBaseUrl',
+                      'prodBaseUrl'
+                    ]
+                  }
+                ].concat(options.arrangeFields || []);
               },
               construct: function(self, options) {
                 require('./lib/sites-base.js')(self, options);
