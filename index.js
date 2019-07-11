@@ -542,8 +542,8 @@ module.exports = async function(options) {
 
                 options.arrangeFields = [
                   {
-                    name: 'multisite',
-                    label: 'Multisite',
+                    name: 'urls',
+                    label: 'URLs',
                     fields: [
                       'hostnamesArray',
                       'devBaseUrl',
