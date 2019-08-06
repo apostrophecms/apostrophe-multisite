@@ -2,6 +2,8 @@
 
 ## A work in progress
 
+Despite the version number we have NOT officially declared this module stableyet. Those using it in production are strongly advised to join our [Apostrophe Enterprise Support program](https://apostrophecms.org/support/enterprise-support). Note: you **do not** need this module in most Apostrophe projects. It is designed to support projects that require many independently edited sites with the same source code and configuration.
+
 ## Requirements (Node 8 is REQUIRED)
 
 This module requires Node 8. Your project must also have `apostrophe` as an npm dependency.
