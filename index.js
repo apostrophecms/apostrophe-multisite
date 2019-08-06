@@ -4,6 +4,8 @@ const fs = require('fs');
 const argv = require('boring')();
 const quote = require('shell-quote').quote;
 const Promise = require('bluebird');
+const uploadfs = require('uploadfs');
+const mkdirp = require('mkdirp');
 
 module.exports = async function(options) {
   let self = {};
@@ -348,7 +350,8 @@ module.exports = async function(options) {
                 prefix: '/' + site._id,
                 uploadsPath: getRootDir() + '/sites/public/uploads',
                 uploadsUrl: '/uploads',
-                tempPath: getRootDir() + '/sites/data/temp/' + site._id + '/uploadfs'
+                tempPath: getRootDir() + '/sites/data/temp/' + site._id + '/uploadfs',
+                https: true
               }
             },
 
@@ -365,8 +368,62 @@ module.exports = async function(options) {
 
             'apostrophe-multisite-patch-assets': {
               construct: function(self, options) {
-                // At least one site has already started up, which means
-                // assets have already been attended to. Steal its
+                // The sites should share a collection for this purpose,
+                // so they don't fail to see that a bundle has already been
+                // generated via a temporary site during deployment
+                self.apos.assets.generationCollection = dashboard.db.collection('sitesAssetGeneration');
+                // Use a separate uploadfs instance for assets, so that the
+                // sites share assets but not attachments
+
+                self.apos.assets.uploadfs = function() {
+                  return self.uploadfs;
+                };
+
+                self.initUploadfs = function(callback) {
+                  self.uploadfs = require('uploadfs')();
+                  const uploadfsDefaultSettings = {
+                    backend: 'local',
+                    prefix: '/shared-assets',
+                    uploadsPath: getRootDir() + '/sites/public/uploads',
+                    uploadsUrl: '/uploads',
+                    tempPath: getRootDir() + '/sites/data/temp/shared-assets/uploadfs'
+                  };
+
+                  self.uploadfsSettings = {};
+                  _.merge(self.uploadfsSettings, uploadfsDefaultSettings);
+                  _.merge(self.uploadfsSettings, options.uploadfs || {});
+
+                  if (process.env.APOS_S3_BUCKET) {
+                    _.merge(self.uploadfsSettings, {
+                      backend: 's3',
+                      endpoint: process.env.APOS_S3_ENDPOINT,
+                      secret: process.env.APOS_S3_SECRET,
+                      key: process.env.APOS_S3_KEY,
+                      bucket: process.env.APOS_S3_BUCKET,
+                      region: process.env.APOS_S3_REGION,
+                      https: true
+                    });
+                  }
+
+                  safeMkdirp(self.uploadfsSettings.uploadsPath);
+                  safeMkdirp(self.uploadfsSettings.tempPath);
+                  self.uploadfs = uploadfs();
+                  self.uploadfs.init(self.uploadfsSettings, callback);
+                  function safeMkdirp(path) {
+                    try {
+                      mkdirp.sync(path);
+                    } catch (e) {
+                      if (require('fs').existsSync(path)) {
+                        // race condition in mkdirp but all is well
+                      } else {
+                        throw e;
+                      }
+                    }
+                  }
+                };
+
+                // For dev: at least one site has already started up, which
+                // means assets have already been attended to. Steal its
                 // asset generation identifier so they don't fight.
                 // We're not too late because apostrophe-assets doesn't
                 // use this information until afterInit
@@ -375,9 +432,12 @@ module.exports = async function(options) {
                   return;
                 }
                 self.apos.assets.generation = sample.assets.generation;
+              },
+
+              afterConstruct: function(self, callback) {
+                return self.initUploadfs(callback);
               }
             }
-
           }
         }, config)
       );
@@ -456,6 +516,7 @@ module.exports = async function(options) {
                 // that site
                 if (options.disabled) {
                   self.afterInit = function() {};
+                  self.determineGenerationAndExtract = function() {};
                 }
               }
             },
@@ -618,8 +679,16 @@ module.exports = async function(options) {
 
   async function runTaskOnAllSites(options) {
     options = options || {};
-    // Prevent dashboard from attempting to run the task when it wakes up
-    dashboard = await spinUpDashboard({ argv: { _: [] } });
+    // Prevent dashboard from attempting to run the task or touch assets
+    // when it wakes up
+    dashboard = await spinUpDashboard({
+      argv: { _: [] },
+      modules: {
+        'apostrophe-assets': {
+          disabled: true
+        }
+      }
+    });
     const req = dashboard.tasks.getReq();
     let sites;
     if (options.temporary) {
@@ -637,16 +706,9 @@ module.exports = async function(options) {
     const spawn = require('child_process').spawnSync;
     sites.forEach(site => {
       log(site, 'running task');
-      const result = spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8' });
-      if (result.stdout.length) {
-        console.log(result.stdout);
-      }
-      if (result.stderr.length) {
-        console.error(result.stderr);
-      }
+      spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8', stdio: 'inherit' });
     });
     if (options.temporary) {
-      console.log('Cleaning up temporary site');
       await dashboard.docs.db.remove({ _id: sites[0]._id });
     }
     // Our job to exit since we know the tasks are all complete already
