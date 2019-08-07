@@ -544,7 +544,9 @@ module.exports = async function(options) {
                 prefix: '/dashboard',
                 uploadsPath: getRootDir() + '/dashboard/public/uploads',
                 uploadsUrl: '/uploads',
-                tempPath: getRootDir() + '/data/temp/dashboard/uploadfs'
+                tempPath: getRootDir() + '/data/temp/dashboard/uploadfs',
+                // Avoid mixed content warning
+                https: true
               }
             },
 
