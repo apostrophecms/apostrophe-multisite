@@ -427,8 +427,8 @@ module.exports = async function(options) {
                 // asset generation identifier so they don't fight.
                 // We're not too late because apostrophe-assets doesn't
                 // use this information until afterInit
-                const superDetermineDevGeneration = self.determineDevGeneration;
-                self.determineDevGeneration = function() {
+                const superDetermineDevGeneration = self.apos.assets.determineDevGeneration;
+                self.apos.assets.determineDevGeneration = function() {
                   const original = superDetermineDevGeneration();
                   const sample = getSampleSite();
                   if (!sample) {
