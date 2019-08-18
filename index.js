@@ -427,11 +427,15 @@ module.exports = async function(options) {
                 // asset generation identifier so they don't fight.
                 // We're not too late because apostrophe-assets doesn't
                 // use this information until afterInit
-                const sample = getSampleSite();
-                if (!sample) {
-                  return;
-                }
-                self.apos.assets.generation = sample.assets.generation;
+                const superDetermineDevGeneration = self.determineDevGeneration;
+                self.determineDevGeneration = function() {
+                  const original = superDetermineDevGeneration();
+                  const sample = getSampleSite();
+                  if (!sample) {
+                    return original;
+                  }
+                  return sample.assets.generation;
+                };
               },
 
               afterConstruct: function(self, callback) {
