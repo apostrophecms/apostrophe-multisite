@@ -1,5 +1,10 @@
 NOTE: see the STABILITY note in the README.
 
+# 2.0.4
+
+* Make sure `dashboard` can be seen early enough in `spinUp` if a site is spun up by the dashboard before its own spinup is 100% complete, for instance as part of a command line task's execution.
+* Asset generation override for dev is simpler now.
+
 # 2.0.3
 
 * No mixed content warnings breaking stylesheets on dashboard. Same rule already applied to sites: `https: true` for uploadfs.

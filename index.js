@@ -168,7 +168,7 @@ module.exports = async function(options) {
     throw new Error('To run a command line task you must specify --all-sites, --temporary-site, or --site=hostname-or-id. To run a task for the dashboard site specify --site=dashboard');
   }
 
-  dashboard = await spinUpDashboard();
+  await spinUpDashboard();
 
   app.use(simpleUrlMiddleware);
 
@@ -633,6 +633,10 @@ module.exports = async function(options) {
           }
         }, config)
       );
+
+      // We need access to this early, so the dashboard can
+      // spin up instances of sites in the cleanup task, etc.
+      dashboard = apos;
     }
   }
 
