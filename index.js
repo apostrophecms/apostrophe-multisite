@@ -713,6 +713,7 @@ module.exports = async function(options) {
     let sites;
     if (options.temporary) {
       const site = {
+        // ACHTUNG: this title is looked for, don't change it
         title: '** Temporary for Command Line Task',
         published: false,
         trash: false,
