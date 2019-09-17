@@ -294,7 +294,9 @@ module.exports = async function(options) {
         viewsFolderFallback = undefined;
       }
 
-      let baseUrl = 'baseUrl-not-set';
+      // for bc don't require baseUrl to be set but it is
+      // helpful for API implementations
+      let baseUrl;
 
       if (options.env && site[options.env + 'BaseUrl']) {
         baseUrl = site[options.env + 'BaseUrl'];
@@ -486,11 +488,19 @@ module.exports = async function(options) {
         viewsFolderFallback = undefined;
       }
 
+      let baseUrl = 'baseUrl-not-set';
+
+      if (options.env && config[options.env + 'BaseUrl']) {
+        baseUrl = config[options.env + 'BaseUrl'];
+      }
+
       const apos = apostrophe(
 
         _.merge({
 
           multisite: self,
+
+          baseUrl: baseUrl,
 
           afterListen: function(err) {
             if (err) {
