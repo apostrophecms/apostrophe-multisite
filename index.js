@@ -718,6 +718,9 @@ module.exports = async function(options) {
         trash: false,
         _id: dashboard.utils.generateId()
       };
+      if (argv.theme) {
+        site.theme = argv.theme;
+      }
       await dashboard.sites.insert(req, site);
       sites = [ site ];
     } else {

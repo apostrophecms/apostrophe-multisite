@@ -1,5 +1,9 @@
 NOTE: see the STABILITY note in the README.
 
+# 2.0.5
+
+* The `theme` property can be injected into a temporary `site` object via the `--theme` command line option, when used together with `--temporary-site`. This is not the full-blown theme support you are waiting for. Real theme support will likely be arriving as we backport from a relevant project.
+
 # 2.0.4
 
 * Make sure `dashboard` can be seen early enough in `spinUp` if a site is spun up by the dashboard before its own spinup is 100% complete, for instance as part of a command line task's execution.
