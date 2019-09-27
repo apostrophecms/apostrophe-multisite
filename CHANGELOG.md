@@ -1,5 +1,9 @@
 NOTE: see the STABILITY note in the README.
 
+# 2.0.6
+
+* The databases associated with temporary sites created via the `--temporary-site` option to run a command line task are now dropped properly after the task completes. You may find you have quite a few of these databases kicking around. These can be cleaned up using `node app sites:remove-orphans --site=dashboard`. You should `mongodump` the entire system first as a backup.
+
 # 2.0.5
 
 * The `theme` property can be injected into a temporary `site` object via the `--theme` command line option, when used together with `--temporary-site`. This is not the full-blown theme support you are waiting for. Real theme support will likely be arriving as we backport from a relevant project.

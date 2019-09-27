@@ -12,6 +12,7 @@ module.exports = async function(options) {
   // apos objects by site _id
   const aposes = {};
   const aposUpdatedAt = {};
+  let multisiteOptions;
 
   // Public API
 
@@ -118,6 +119,8 @@ module.exports = async function(options) {
   if (process.env.ENV) {
     options.env = process.env.ENV;
   }
+
+  multisiteOptions = options;
 
   // All sites running under this process share a mongodb connection object
   const db = await mongo.MongoClient.connect(options.mongodbUrl, {
@@ -732,6 +735,8 @@ module.exports = async function(options) {
       spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8', stdio: 'inherit' });
     });
     if (options.temporary) {
+      console.log(`Dropping ${multisiteOptions.shortNamePrefix + sites[0]._id}`);
+      await db.db(multisiteOptions.shortNamePrefix + sites[0]._id).dropDatabase();
       await dashboard.docs.db.remove({ _id: sites[0]._id });
     }
     // Our job to exit since we know the tasks are all complete already
