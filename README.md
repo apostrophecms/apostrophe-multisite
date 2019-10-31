@@ -167,7 +167,7 @@ To run a task for the dashboard site:
 node app apostrophe-migrations:migrate --site=dashboard
 ```
 
-To run a task for an individual site, by its hostname or _id:
+To run a task for an individual site, by its hostname or `_id`:
 
 ```
 node app apostrophe-migrations:migrate --site=example.com
@@ -187,6 +187,38 @@ node app apostrophe:generation --temporary-site
 
 > `--temporary-site` is good for generating assets that are shared between the hosted sites, but not the dashboard. Note that `--temporary-site` and `--all-sites` do not work for interactive tasks that prompt for information, like `apostrophe-users:change-password`, or otherwise read from standard input. Currently these options print all output at the end.
 
+## Running scheduled tasks just once across a cluster
+
+You may have multiple application servers or workers which could potentially run each task, and need them to run, for instance, only once per hour.
+
+You can do that by configuring cron jobs like this across all servers:
+
+```
+0 0 * * * node app scheduled-tasks --frequency=daily
+0 * * * * node app scheduled-tasks --frequency=hourly
+```
+
+And passing this option in the top level configuration:
+
+```
+tasks: {
+  frequency: {
+    hourly: [
+      // Run this task hourly but only on the server that
+      // happens to grab the lock first
+      'products:sync'
+    ],
+    daily: [ ... also supported ]
+  }
+}
+```
+
+This way your crontab file doesn't have to contain any
+custom state. It just contains these standard entries and
+app level configuration determines what tasks are run,
+leveraging cron just as a way to begin invocation at the
+right time.
+ 
 ## Code and templates for the hosted sites
 
 These live in `sites/lib/modules` of your project.

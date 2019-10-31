@@ -167,6 +167,10 @@ module.exports = async function(options) {
     return runTaskOnAllSites();
   }
 
+  if (argv._[0] === 'scheduled-tasks') {
+    return runScheduledTasksOnAllSites();
+  }
+
   if (argv._.length) {
     throw new Error('To run a command line task you must specify --all-sites, --temporary-site, or --site=hostname-or-id. To run a task for the dashboard site specify --site=dashboard');
   }
@@ -700,8 +704,40 @@ module.exports = async function(options) {
     return runTaskOnAllSites({ temporary: true });
   }
 
+  async function runScheduledTasksOnAllSites() {
+    if (!options.schedule) {
+      return;
+    }
+    const frequency = apos.frequency;
+    if (!frequency) {
+      throw new Error('--frequency must be hourly or daily.');
+    }
+    const tasks = options.schedule[frequency];
+    const guard = {
+      hourly: 50,
+      daily: 23 * 60
+    };
+    for (const task of (tasks || [])) {
+      await runTaskOnAllSites({
+        args: [ task ],
+        guard: guard[frequency],
+        frequency
+      });
+    }
+  }
+
+  // options is optional. If options.args is not present process.argv is
+  // consulted for the task to run. Otherwise options.args consists
+  // of positional parameters, of which [0] is the task name. This is
+  // adequate for the scheduler's needs.
+  //
+  // If options.guard is present, will return quietly without running the
+  // task if it has been started less than options.guard minutes ago.
+
   async function runTaskOnAllSites(options) {
     options = options || {};
+    const args = options.args || process.argv.slice(1);
+    const task = args[0];
     // Prevent dashboard from attempting to run the task or touch assets
     // when it wakes up
     dashboard = await spinUpDashboard({
@@ -712,35 +748,71 @@ module.exports = async function(options) {
         }
       }
     });
-    const req = dashboard.tasks.getReq();
-    let sites;
-    if (options.temporary) {
-      const site = {
-        title: '** Temporary for Command Line Task',
-        published: false,
-        trash: false,
-        _id: dashboard.utils.generateId()
-      };
-      if (argv.theme) {
-        site.theme = argv.theme;
+    let locked = false;
+    const taskLog = dashboard.db.collection('aposTaskLog');
+    try {
+      if (options.guard) {
+        await dashboard.locks.lock(task);     
+        locked = true;
+        const safe = new Date();
+        safe.setMinutes(safe.getMinutes() - options.guard);
+        const last = await taskLog.findOne({ 
+          _id: task
+        }, {
+          startedAt: {
+            $gte: safe
+          }
+        });
+        if (last) {
+          await dashboard.locks.unlock(task);
+          return;
+        }
       }
-      await dashboard.sites.insert(req, site);
-      sites = [ site ];
-    } else {
-      sites = await dashboard.sites.find(req, {}).toArray();
+
+      await taskLog.insert({
+        _id: task,
+        startedAt: new Date()
+      });
+
+      const req = dashboard.tasks.getReq();
+      let sites;
+      if (options.temporary) {
+        const site = {
+          title: '** Temporary for Command Line Task',
+          published: false,
+          trash: false,
+          _id: dashboard.utils.generateId()
+        };
+        if (argv.theme) {
+          site.theme = argv.theme;
+        }
+        await dashboard.sites.insert(req, site);
+        sites = [ site ];
+      } else {
+        sites = await dashboard.sites.find(req, {}).toArray();
+      }
+      for (const site of sites) {
+        log(site, 'running ' + task);
+        await require('util').promisify(spawn)(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8', stdio: 'inherit' });
+      }
+      if (options.temporary) {
+        console.log(`Dropping ${multisiteOptions.shortNamePrefix + sites[0]._id}`);
+        await db.db(multisiteOptions.shortNamePrefix + sites[0]._id).dropDatabase();
+        await dashboard.docs.db.remove({ _id: sites[0]._id });
+      }
+    } finally {
+      if (locked) {
+        await dashboard.locks.unlock(task);
+      }
     }
-    const spawn = require('child_process').spawnSync;
-    sites.forEach(site => {
-      log(site, 'running task');
-      spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8', stdio: 'inherit' });
-    });
-    if (options.temporary) {
-      console.log(`Dropping ${multisiteOptions.shortNamePrefix + sites[0]._id}`);
-      await db.db(multisiteOptions.shortNamePrefix + sites[0]._id).dropDatabase();
-      await dashboard.docs.db.remove({ _id: sites[0]._id });
+    function spawn(program, args, options, callback) {
+      return require('child_process').spawn(program, args, options).on('close', function(code) {
+        if (!code) {
+          return callback(null);
+        }
+        return callback(code);
+      });
     }
-    // Our job to exit since we know the tasks are all complete already
-    process.exit(0);
   }
 
   function getRoot() {
@@ -770,20 +842,6 @@ module.exports = async function(options) {
 
   function hostnameOnly(server) {
     return server.replace(/\:\d+$/, '');
-  }
-
-  async function lock() {
-    if (!lockDepth) {
-      await dashboard.locks.lock('multisite-spinup');
-    }
-    lockDepth++;
-  }
-
-  async function unlock() {
-    lockDepth--;
-    if (!lockDepth) {
-      await dashboard.locks.unlock('multisite-spinup');
-    }
   }
 
   // Periodically free apos objects allocated to serve sites that
