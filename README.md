@@ -167,7 +167,7 @@ To run a task for the dashboard site:
 node app apostrophe-migrations:migrate --site=dashboard
 ```
 
-To run a task for an individual site, by its hostname or _id:
+To run a task for an individual site, by its hostname or `_id`:
 
 ```
 node app apostrophe-migrations:migrate --site=example.com
@@ -187,6 +187,49 @@ node app apostrophe:generation --temporary-site
 
 > `--temporary-site` is good for generating assets that are shared between the hosted sites, but not the dashboard. Note that `--temporary-site` and `--all-sites` do not work for interactive tasks that prompt for information, like `apostrophe-users:change-password`, or otherwise read from standard input. Currently these options print all output at the end.
 
+## Running scheduled tasks just once across a cluster
+
+You may have multiple application servers or workers which could potentially run each task, and need them to run, for instance, only once per hour. You need them to run only once even if you have many servers.
+
+You can do that by configuring cron jobs like this across all servers. These cron jobs don't call out the specific tasks, they just provide a point of entry:
+
+```
+0 0 * * * ( cd /opt/stagecoach/apps/my-app/current && node app tasks --frequency=daily )
+0 * * * * ( cd /opt/stagecoach/apps/my-app/current && node app tasks --frequency=hourly )
+```
+
+Now configure the top-level `tasks` option, which is a peer of `sites` and `dashboard`, it is not nested within them:
+
+```
+tasks: {
+  // These tasks are run for all sites, i.e. like the `--all-sites` option
+  'all-sites': {
+    hourly: [
+      // Run this task hourly but only on the server that
+      // happens to grab the lock first
+      'products:sync'
+    ],
+    daily: [ ... also supported ]
+  },
+  // These tasks are run for the dashboard site, i.e. like `--site=dashboard`
+  dashboard: {
+    hourly: [
+      'some-module-name:some-task-name'
+    ],
+    daily: [ ... also supported ]
+  }
+}
+```
+
+This way your crontab file doesn't have to contain any
+custom state. It just contains these standard entries and
+your configuration in `app.js` determines what tasks are run,
+leveraging cron only as a way to begin invocation at the
+right time.
+
+Apostrophe will use locks and check the most recent start
+time to avoid redundancy.
+ 
 ## Code and templates for the hosted sites
 
 These live in `sites/lib/modules` of your project.
