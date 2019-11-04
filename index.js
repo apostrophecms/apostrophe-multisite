@@ -721,7 +721,6 @@ module.exports = async function(options) {
       };
       for (const task of (tasks || [])) {
         await runScheduledTaskOnAllSites(
-          'all',
           task,
           guard[frequency]
         );
@@ -789,7 +788,7 @@ module.exports = async function(options) {
   // locking against simultaneous runs and returning immediately
   // if it has been started fewer than `guard` minutes ago
 
-  async function runScheduledTaskOnAllSites(lockPrefix, task, guard) {
+  async function runScheduledTaskOnAllSites(task, guard) {
     // Prevent dashboard from attempting to run the task or touch assets
     // when it wakes up
     dashboard = await spinUpDashboard({
@@ -807,12 +806,12 @@ module.exports = async function(options) {
       startedAt: -1
     });
     try {
-      await dashboard.locks.lock(`${lockPrefix}-${task}`);     
+      await dashboard.locks.lock(`all-${task}`);     
       locked = true;
       const safe = new Date();
       safe.setMinutes(safe.getMinutes() - guard);
       const last = await taskLog.findOne({ 
-        task,
+        task: `all-${task}`,
         startedAt: {
           $gte: safe
         }
@@ -822,7 +821,7 @@ module.exports = async function(options) {
       }
 
       await taskLog.insert({
-        task,
+        task: `all-${task}`,
         startedAt: new Date()
       });
 
@@ -837,7 +836,69 @@ module.exports = async function(options) {
       }
     } finally {
       if (locked) {
-        await dashboard.locks.unlock(`${lockPrefix}-${task}`);
+        await dashboard.locks.unlock(`all-${task}`);
+      }
+    }
+    function spawn(program, args, options, callback) {
+      return require('child_process').spawn(program, args, options).on('close', function(code) {
+        if (!code) {
+          return callback(null);
+        }
+        return callback(code);
+      });
+    }
+  }
+
+  // Run the named task, with no extra arguments, on the dashboard site,
+  // locking against simultaneous runs and returning immediately
+  // if it has been started fewer than `guard` minutes ago
+
+  async function runScheduledTaskOnDashboard(task, guard) {
+    // Prevent dashboard from attempting to run the task or touch assets
+    // when it wakes up
+    dashboard = await spinUpDashboard({
+      argv: { _: [] },
+      modules: {
+        'apostrophe-assets': {
+          disabled: true
+        }
+      }
+    });
+    let locked = false;
+    const taskLog = dashboard.db.collection('aposTaskLog');
+    await taskLog.createIndex({
+      task: 1,
+      startedAt: -1
+    });
+    try {
+      await dashboard.locks.lock(`dashboard-${task}`);     
+      locked = true;
+      const safe = new Date();
+      safe.setMinutes(safe.getMinutes() - guard);
+      const last = await taskLog.findOne({ 
+        task: `dashboard-${task}`,
+        startedAt: {
+          $gte: safe
+        }
+      });
+      if (last) {
+        return;
+      }
+
+      await taskLog.insert({
+        task: `dashboard-${task}`,
+        startedAt: new Date()
+      });
+
+      const req = dashboard.tasks.getReq();
+      const sites = await dashboard.sites.find(req, {}).toArray();
+      const args = process.argv.slice(1);
+      args[args.findIndex(arg => arg === 'tasks')] = task;
+      args.push('--site=dashboard');
+      await require('util').promisify(spawn)(process.argv[0], args, { encoding: 'utf8', stdio: 'inherit' });
+    } finally {
+      if (locked) {
+        await dashboard.locks.unlock(`dashboard-${task}`);
       }
     }
     function spawn(program, args, options, callback) {
