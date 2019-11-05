@@ -1,5 +1,9 @@
 NOTE: see the STABILITY note in the README.
 
+# 2.0.7
+
+You can now schedule simple daily and hourly Apostrophe command line tasks across a cluster without encountering duplicate execution. See the README for details.
+
 # 2.0.6
 
 * The databases associated with temporary sites created via the `--temporary-site` option to run a command line task are now dropped properly after the task completes. You may find you have quite a few of these databases kicking around. These can be cleaned up using `node app sites:remove-orphans --site=dashboard`. You should `mongodump` the entire system first as a backup.
