@@ -1,5 +1,15 @@
 NOTE: see the STABILITY note in the README.
 
+# 2.0.8
+
+When a new site is created, an `admin` user is always created, if one does not already exist in the site being copied, and that user is always added to a new `admin` group with the `admin` permission, if they are already not a member of one.
+
+Also, there is now a field allowing the password of the admin user to be set as part of creating or updating a site in the dashboard. This field is mandatory if the site is being created from scratch, rather than copied.
+
+This resolves a number of chicken and egg problems.
+
+(When copying an existing site, the new site contains accounts that are duplicates of the original site's accounts, just like all other content in the site. Internally we largely used that feature until now.)
+
 # 2.0.7
 
 You can now schedule simple daily and hourly Apostrophe command line tasks across a cluster without encountering duplicate execution. See the README for details.
