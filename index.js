@@ -622,6 +622,12 @@ module.exports = async function(options) {
                     label: 'Production Base URL',
                     help: 'like https://myproject.com',
                     type: 'url'
+                  },
+                  {
+                    name: 'adminPassword',
+                    label: 'Admin Password',
+                    type: 'password',
+                    help: 'Set password for the "admin" user of the new site. For pre-existing sites, leave blank for no change.'
                   }
                 ].concat(options.addFields || []);
 
@@ -635,6 +641,11 @@ module.exports = async function(options) {
                       'stagingBaseUrl',
                       'prodBaseUrl'
                     ]
+                  },
+                  {
+                    name: 'password',
+                    label: 'Password',
+                    fields: [ 'adminPassword' ]
                   }
                 ].concat(options.arrangeFields || []);
               },
