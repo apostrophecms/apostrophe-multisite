@@ -317,7 +317,7 @@ require('apostrophe-multisite')({
 
 ```
 
-This way, the three url fields (dev, staging, and prod) will not be part of the site's schema but two other fields will appear: shortname and production hostname. The shortname will be added to the baseUrlDomains environments and hostnames will be infered from this. For instance, if the shortname is `shortname`, the staging environment would be `shortname.test.dev` in the example above. If the production hostname is filled, the prod url will replace `test.com`. The production hostname will also be duplicated in the hostnames array (one version with `www.`, one version without).
+This way, the three url fields (dev, staging, and prod) will not be part of the site's schema but two other fields will appear: shortname and production hostname. The shortname will be added to the baseUrlDomains environments and hostnames will be inferred from this. For instance, if the shortname is `shortname`, the staging environment would be `shortname.test.dev` in the example above. If the production hostname is filled, the prod url will replace `test.com`. The production hostname will also be duplicated in the hostnames array (one version with `www.`, one version without).
 
 If sites were created using the default method, after having added the `baseUrlDomains` config, it is possible to run the task `node app sites:transition-shortname --site=dashboard` to fill shortname for each site base on the first hostname if it existed.
 
@@ -336,4 +336,6 @@ Or add it as an environment variable when starting up your app.
 You can create your own environment names by adding url fields to your `sites` piece type and naming them like this:
 
 `myEnvBaseUrl` or `staging2BaseUrl`
+
+The `ENV` environment variable determines which environment will be used. If it is `prod` for example, the url used will be the one defined in the schema or in the sites configuration for `prod`.
 
