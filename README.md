@@ -289,7 +289,39 @@ VERBOSE=1 node app
 
 ## Setting `baseUrl` and naming environments
 
-By default, `sites` come with three url fields in their schema that correspond to three server environments: `dev`, `staging`, and `prod`. From the Dashboard, you are able to set the `baseUrl` property of each site within each environment. To let `apostrophe-multisite` know what environment it is currently running in, add the property `env` to your server's `data/local.js` file.
+By default, `sites` come with three url fields in their schema that correspond to three server environments: `dev`, `staging`, and `prod`. From the Dashboard, you are able to set the `baseUrl` property of each site within each environment.
+
+Or you can add a configuration in the dashboard:
+
+```javascript
+// app.js
+require('apostrophe-multisite')({
+  dashboard: {
+    modules: {
+      'sites': {
+        baseUrlDomains: {
+          dev: 'test',
+          staging: 'test.dev',
+          prod: 'test.com'
+        },
+      },
+    }
+  }
+}).then(function (result) {
+  // There is no top level await so we catch this here.
+  // At this point either the task is running or the site is up.
+}).catch(function (err) {
+  console.error(err);
+  process.exit(1);
+});
+
+```
+
+This way, the three url fields (dev, staging, and prod) will not be part of the site's schema but two other fields will appear: shortname and production hostname. The shortname will be added to the baseUrlDomains environments and hostnames will be inferred from this. For instance, if the shortname is `shortname`, the staging environment would be `shortname.test.dev` in the example above. If the production hostname is filled, the prod url will replace `test.com`. The production hostname will also be duplicated in the hostnames array (one version with `www.`, one version without).
+
+If sites were created using the default method, after having added the `baseUrlDomains` config, it is possible to run the task `node app sites:transition-shortname --site=dashboard` to fill shortname for each site base on the first hostname if it existed.
+
+To let `apostrophe-multisite` know what environment it is currently running in, add the property `env` to your server's `data/local.js` file.
 
 ```
 module.exports = {
@@ -304,4 +336,6 @@ Or add it as an environment variable when starting up your app.
 You can create your own environment names by adding url fields to your `sites` piece type and naming them like this:
 
 `myEnvBaseUrl` or `staging2BaseUrl`
+
+The `ENV` environment variable determines which environment will be used. If it is `prod` for example, the url used will be the one defined in the schema or in the sites configuration for `prod`.
 
