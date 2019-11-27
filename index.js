@@ -586,73 +586,7 @@ module.exports = async function(options) {
             // a base class for the sites module allows the dev
             // to extend it easily project-level as if it were
             // coming from an npm module. -Tom
-            'sites-base': {
-              instantiate: false,
-              extend: 'apostrophe-pieces',
-              name: 'site',
-              beforeConstruct: function(self, options) {
-                options.addFields = [
-                  {
-                    type: 'array',
-                    name: 'hostnamesArray',
-                    label: 'Hostnames',
-                    schema: [
-                      {
-                        type: 'string',
-                        required: true,
-                        name: 'hostname',
-                        help: 'All valid hostnames for the site must be on this list, for instance both example.com and www.example.com'
-                      }
-                    ]
-                  },
-                  {
-                    name: 'devBaseUrl',
-                    label: 'Development Base URL',
-                    help: 'like http://localhost:3000',
-                    type: 'url'
-                  },
-                  {
-                    name: 'stagingBaseUrl',
-                    label: 'Staging Base URL',
-                    help: 'like http://project.staging.org',
-                    type: 'url'
-                  },
-                  {
-                    name: 'prodBaseUrl',
-                    label: 'Production Base URL',
-                    help: 'like https://myproject.com',
-                    type: 'url'
-                  },
-                  {
-                    name: 'adminPassword',
-                    label: 'Admin Password',
-                    type: 'password',
-                    help: 'Set password for the "admin" user of the new site. For pre-existing sites, leave blank for no change.'
-                  }
-                ].concat(options.addFields || []);
-
-                options.arrangeFields = [
-                  {
-                    name: 'urls',
-                    label: 'URLs',
-                    fields: [
-                      'hostnamesArray',
-                      'devBaseUrl',
-                      'stagingBaseUrl',
-                      'prodBaseUrl'
-                    ]
-                  },
-                  {
-                    name: 'password',
-                    label: 'Password',
-                    fields: [ 'adminPassword' ]
-                  }
-                ].concat(options.arrangeFields || []);
-              },
-              construct: function(self, options) {
-                require('./lib/sites-base.js')(self, options);
-              }
-            },
+            'sites-base': require('./lib/sites-base.js'),
 
             'sites': {
               extend: 'sites-base',
