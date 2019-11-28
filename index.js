@@ -176,7 +176,7 @@ module.exports = async function(options) {
     throw new Error('To run a command line task you must specify --all-sites, --temporary-site, or --site=hostname-or-id. To run a task for the dashboard site specify --site=dashboard');
   }
 
-  await spinUpDashboard();
+  const apos = await spinUpDashboard();
 
   app.use(simpleUrlMiddleware);
 
@@ -184,7 +184,7 @@ module.exports = async function(options) {
 
   app.use(sitesMiddleware);
 
-  const listen = require('util').promisify(app.listen.bind(app));
+  // const listen = require('util').promisify(app.listen.bind(app));
 
   if (process.env.PORT) {
     options.port = parseInt(process.env.PORT);
@@ -192,6 +192,7 @@ module.exports = async function(options) {
 
   janitor();
 
+  let server;
   if (options.server) {
     // Legacy
     const parts = options.server.split(':');
@@ -199,14 +200,19 @@ module.exports = async function(options) {
       throw new Error('server option or SERVER environment variable is badly formed, must be address:port');
     }
     console.log('Proxy listening on port ' + parts[1]);
-    return await listen(parts[1]);
+    server = app.listen(parts[1])
   } else {
     console.log('Proxy listening on port ' + options.port);
-    return await listen(options.port);
+    server = app.listen(options.port)
   }
 
+  return {
+    self,
+    apos,
+    server
+  };
+
   function dashboardMiddleware(req, res, next) {
-    // console.log(req.get('Host') + ':' + req.url);
     let site = req.get('Host');
     const matches = site.match(/^([^\:]+)/);
     if (!matches) {

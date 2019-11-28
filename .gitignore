@@ -7,6 +7,10 @@ npm-debug.log
 *.npmignore
 node_modules
 test/node_modules
+test/dashboard
+test/data
+test/locales
+test/sites
 
 # We do not commit CSS, only LESS, with the exception of a few vendor CSS files we don't have LESS for
 */public/css/*.css
