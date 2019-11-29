@@ -200,10 +200,10 @@ module.exports = async function(options) {
       throw new Error('server option or SERVER environment variable is badly formed, must be address:port');
     }
     console.log('Proxy listening on port ' + parts[1]);
-    server = app.listen(parts[1])
+    server = app.listen(parts[1]);
   } else {
     console.log('Proxy listening on port ' + options.port);
-    server = app.listen(options.port)
+    server = app.listen(options.port);
   }
 
   return {

@@ -4,7 +4,8 @@
   "description": "Multisite support for the Apostrophe CMS. Create & manage multiple sites with the same configuration and host them efficiently.",
   "main": "index.js",
   "scripts": {
-    "test": "nyc --reporter=lcov mocha --timeout=10000 --reporter=dot --exit",
+    "lint": "prettier --write '**/*.js'",
+    "test": "nyc mocha --timeout=10000 --reporter=dot --exit",
     "test:cover": "nyc --reporter=html npm test && open-cli ./coverage/index.html",
     "test:watch": "mocha --timeout=10000 --watch"
   },
@@ -48,11 +49,24 @@
     "apostrophe": "^2.100.1",
     "chai": "^4.2.0",
     "del": "^5.1.0",
+    "husky": "^3.1.0",
     "mocha": "^6.2.2",
     "nyc": "^14.1.1",
     "open-cli": "^5.0.0",
+    "prettier": "1.19.1",
     "request": "^2.88.0",
     "request-promise": "^4.2.5",
     "server-destroy": "^1.0.1"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "echo /nothing/"
+    }
+  },
+  "prettier": {
+    "printWidth": 100,
+    "semi": true,
+    "trailingComma": "none",
+    "singleQuote": true
   }
 }
