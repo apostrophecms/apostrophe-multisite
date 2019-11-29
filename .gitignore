@@ -11,6 +11,8 @@ test/dashboard
 test/data
 test/locales
 test/sites
+.nyc_output
+coverage
 
 # We do not commit CSS, only LESS, with the exception of a few vendor CSS files we don't have LESS for
 */public/css/*.css
