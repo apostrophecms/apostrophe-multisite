@@ -35,9 +35,11 @@ describe('Apostrophe-multisite', function() {
       await del(['./test/sites/data']);
 
       // find and remove test dbs
-      const db = await mongo.MongoClient.connect(
-        process.env.MONGODB_URL || 'mongodb://localhost:27017'
-      );
+      const mongoUrl =
+        process.env.MONGODB_SERVER && process.env.MONGODB_PORT
+          ? `mongodb://${process.env.MONGODB_SERVER}:${process.env.MONGODB_PORT}`
+          : 'mongodb://localhost:27017';
+      const db = await mongo.MongoClient.connect(mongoUrl);
       const adminDb = db.admin();
       const { databases } = await adminDb.listDatabases();
       for (const db of databases) {
@@ -57,9 +59,9 @@ describe('Apostrophe-multisite', function() {
 
       // configure fake app using apostrophe-multisite
       multisite = await apostropheMultisite({ port, shortNamePrefix });
-      sites = multisite.apos.sites;
+      sites = multisite.dashboard.sites;
       site = sites.newInstance();
-      req = multisite.apos.tasks.getReq();
+      req = multisite.dashboard.tasks.getReq();
     });
 
     after(() => {
@@ -70,7 +72,7 @@ describe('Apostrophe-multisite', function() {
     it('starts the dashboard', async function() {
       expect(multisite)
         .to.be.an('object')
-        .that.has.any.keys('apos', 'server');
+        .that.has.any.keys('getSiteApos', 'dashboard', 'server');
     });
 
     it('creates a site', async function() {
@@ -101,8 +103,8 @@ describe('Apostrophe-multisite', function() {
     });
 
     it('creates an admin user for the dashboard', async function() {
-      const adminGroup = await multisite.apos.groups.find(req, { title: admin }).toObject();
-      const adminUser = await multisite.apos.users.insert(req, {
+      const adminGroup = await multisite.dashboard.groups.find(req, { title: admin }).toObject();
+      const adminUser = await multisite.dashboard.users.insert(req, {
         username: admin,
         password: admin,
         title: admin,
@@ -110,21 +112,18 @@ describe('Apostrophe-multisite', function() {
       });
       expect(adminUser).to.have.property('type', 'apostrophe-user');
 
-      try {
-        const test = await rp({
-          method: 'POST',
-          uri: `http://dashboard.test:${port}/login`,
-          body: {
-            username: admin,
-            password: admin
-          },
-          json: true,
-          followAllRedirects: true
-        });
-        console.log('test', require('util').inspect(test, { colors: true, depth: 1 }));
-      } catch (error) {
-        expect(error).to.have.property('statusCode', 302);
-      }
+      const response = await rp({
+        method: 'POST',
+        uri: `http://dashboard.test:${port}/login`,
+        body: {
+          username: admin,
+          password: admin
+        },
+        json: true,
+        simple: false,
+        resolveWithFullResponse: true
+      });
+      expect(response).to.have.property('statusCode', 302);
     });
 
     it('connects to the newly created site', async function() {
@@ -132,29 +131,24 @@ describe('Apostrophe-multisite', function() {
         ...site,
         ...newSite,
         devBaseUrl: 'site2.test',
-        hostnamesArray: [
-          {
-            hostname: 'site2.test'
-          }
-        ]
+        hostnamesArray: [{ hostname: 'site2.test' }]
       });
       const siteT = await rp(`http://site2.test:${port}`);
       expect(siteT).to.have.string('Home');
       expect(siteT).to.have.string(`"csrfCookieName":"${shortNamePrefix}${piece._id}.csrf"`);
 
-      try {
-        await rp({
-          method: 'POST',
-          uri: `http://site2.test:${port}/login`,
-          body: {
-            username: admin,
-            password: admin
-          },
-          json: true
-        });
-      } catch (error) {
-        expect(error).to.have.property('statusCode', 302);
-      }
+      const response = await rp({
+        method: 'POST',
+        uri: `http://site2.test:${port}/login`,
+        body: {
+          username: admin,
+          password: admin
+        },
+        json: true,
+        simple: false,
+        resolveWithFullResponse: true
+      });
+      expect(response).to.have.property('statusCode', 302);
     });
   });
 });

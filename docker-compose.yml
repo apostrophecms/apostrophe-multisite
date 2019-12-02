@@ -20,7 +20,6 @@ services:
       - site2.test:127.0.0.1
     command: "${TEST_CMD:-npm run test}"
     environment:
-      MONGODB_URL: mongodb://db:27017
       MONGODB_PORT: 27017
       MONGODB_SERVER: db
       NODE_ENV: ${NODE_ENV:-production}

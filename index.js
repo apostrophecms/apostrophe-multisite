@@ -170,15 +170,13 @@ module.exports = async function(options) {
     throw new Error('To run a command line task you must specify --all-sites, --temporary-site, or --site=hostname-or-id. To run a task for the dashboard site specify --site=dashboard');
   }
 
-  const apos = await spinUpDashboard();
+  self.dashboard = await spinUpDashboard();
 
   app.use(simpleUrlMiddleware);
 
   app.use(dashboardMiddleware);
 
   app.use(sitesMiddleware);
-
-  // const listen = require('util').promisify(app.listen.bind(app));
 
   if (process.env.PORT) {
     options.port = parseInt(process.env.PORT);
@@ -212,11 +210,9 @@ module.exports = async function(options) {
     });
   }
 
-  return {
-    self,
-    apos,
-    server
-  };
+  self.server = server
+
+  return self;
 
   function dashboardMiddleware(req, res, next) {
     let site = req.get('Host');
