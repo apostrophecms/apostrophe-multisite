@@ -60,7 +60,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "echo /nothing/"
+      "pre-commit": "echo  \"Nothing at the moment\""
     }
   },
   "prettier": {

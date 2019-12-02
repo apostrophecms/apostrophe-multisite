@@ -3,27 +3,15 @@ const mongo = require('mongodb');
 const { expect } = require('chai');
 const rp = require('request-promise');
 const enableDestroy = require('server-destroy');
-const apostropheMultisite = require('../index.js');
+const apostropheMultisite = require('./app.js');
 
 describe('Apostrophe-multisite', function() {
   describe('#dashboard', function() {
-    const admin = 'admin';
     const port = 3000;
-    const modules = {
-      'apostrophe-users': {
-        groups: [
-          {
-            title: 'admin',
-            permissions: ['admin']
-          }
-        ]
-      },
-      'apostrophe-pages': {},
-      'apostrophe-templates': {}
-    };
-    const title = 'New Site';
+    const admin = 'admin';
     const url = 'site.test';
-    const shortNamePrefix = 'test-multi-';
+    const title = 'New Site';
+    const shortNamePrefix = 'test-multi-'
 
     let multisite;
     let sites;
@@ -47,12 +35,13 @@ describe('Apostrophe-multisite', function() {
       await del(['./test/sites/data']);
 
       // find and remove test dbs
-      const db = await mongo.MongoClient.connect('mongodb://localhost:27017');
+      const db = await mongo.MongoClient.connect(process.env.MONGODB_URL || 'mongodb://localhost:27017');
       const adminDb = db.admin();
       const { databases } = await adminDb.listDatabases();
+      const regex = new RegExp(shortNamePrefix)
       for (const db of databases) {
-        if (db.name.match(/^test-multi-/)) {
-          const client = new mongo.Db(db.name, new mongo.Server('localhost', 27017));
+        if (db.name.match('[^,]*' + shortNamePrefix + '*')) {
+          const client = new mongo.Db(db.name, new mongo.Server('localhost', process.env.MONGODB_PORT || 27017));
           await client.open();
           await client.dropDatabase();
           console.log('\x1b[36m%s\x1b[0m', `Test db ${db.name} dropped`);
@@ -60,14 +49,7 @@ describe('Apostrophe-multisite', function() {
       }
 
       // configure fake app using apostrophe-multisite
-      multisite = await apostropheMultisite({
-        port,
-        sessionSecret: 'test123',
-        shortNamePrefix,
-        sites: { modules },
-        dashboard: { modules },
-        dashboardHostname: 'dashboard.test'
-      });
+      multisite = await apostropheMultisite({ port, shortNamePrefix });
       sites = multisite.apos.sites;
       site = sites.newInstance();
       req = multisite.apos.tasks.getReq();
@@ -108,7 +90,7 @@ describe('Apostrophe-multisite', function() {
     it('connects to the dashboard', async function() {
       const dashboard = await rp(`http://dashboard.test:${port}`);
       expect(dashboard).to.have.string('Home');
-      expect(dashboard).to.have.string('"csrfCookieName":"test-multi-dashboard.csrf"');
+      expect(dashboard).to.have.string(`"csrfCookieName":"${shortNamePrefix}dashboard.csrf"`);
     });
 
     it('creates an admin user for the dashboard', async function() {
@@ -149,7 +131,7 @@ describe('Apostrophe-multisite', function() {
       });
       const siteT = await rp(`http://site2.test:${port}`);
       expect(siteT).to.have.string('Home');
-      expect(siteT).to.have.string(`"csrfCookieName":"test-multi-${piece._id}.csrf"`);
+      expect(siteT).to.have.string(`"csrfCookieName":"${shortNamePrefix}${piece._id}.csrf"`);
 
       try {
         await rp({
