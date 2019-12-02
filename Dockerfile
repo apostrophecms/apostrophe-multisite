@@ -11,4 +11,4 @@ RUN cd /app && npm install --registry=https://registry.npmjs.org/
 # Install application
 COPY . /app
 
-CMD ["npm", "run", "test:cover"]
+CMD ["npm", "run", "test"]

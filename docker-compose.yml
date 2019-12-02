@@ -4,9 +4,6 @@ services:
   db:
     container_name: db
     image: mongo
-    command: --port 27018
-    ports:
-      - 27018:27018
     volumes:
       - mongodata:/data/db
 
@@ -15,8 +12,6 @@ services:
     build: .
     volumes:
       - ./test:/app/test
-    ports:
-      - 3000:3000
     depends_on:
       - db
     extra_hosts:
@@ -25,8 +20,9 @@ services:
       - site2.test:127.0.0.1
     command: "${TEST_CMD:-npm run test}"
     environment:
-      MONGODB_URL: mongodb://db:27018
-      MONGODB_PORT: 27018
+      MONGODB_URL: mongodb://db:27017
+      MONGODB_PORT: 27017
+      MONGODB_SERVER: db
       NODE_ENV: ${NODE_ENV:-production}
       NODE_APP_INSTANCE: docker
 
