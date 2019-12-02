@@ -11,7 +11,7 @@ describe('Apostrophe-multisite', function() {
     const admin = 'admin';
     const url = 'site.test';
     const title = 'New Site';
-    const shortNamePrefix = 'test-multi-'
+    const shortNamePrefix = 'test-multi-';
 
     let multisite;
     let sites;
@@ -31,17 +31,24 @@ describe('Apostrophe-multisite', function() {
     };
 
     before(async () => {
-      //remove temp files
+      // remove temp files
       await del(['./test/sites/data']);
 
       // find and remove test dbs
-      const db = await mongo.MongoClient.connect(process.env.MONGODB_URL || 'mongodb://localhost:27017');
+      const db = await mongo.MongoClient.connect(
+        process.env.MONGODB_URL || 'mongodb://localhost:27017'
+      );
       const adminDb = db.admin();
       const { databases } = await adminDb.listDatabases();
-      const regex = new RegExp(shortNamePrefix)
       for (const db of databases) {
         if (db.name.match('[^,]*' + shortNamePrefix + '*')) {
-          const client = new mongo.Db(db.name, new mongo.Server('localhost', process.env.MONGODB_PORT || 27017));
+          const client = new mongo.Db(
+            db.name,
+            new mongo.Server(
+              process.env.MONGODB_SERVER || 'localhost',
+              process.env.MONGODB_PORT || 27017
+            )
+          );
           await client.open();
           await client.dropDatabase();
           console.log('\x1b[36m%s\x1b[0m', `Test db ${db.name} dropped`);
@@ -104,15 +111,17 @@ describe('Apostrophe-multisite', function() {
       expect(adminUser).to.have.property('type', 'apostrophe-user');
 
       try {
-        await rp({
+        const test = await rp({
           method: 'POST',
           uri: `http://dashboard.test:${port}/login`,
           body: {
             username: admin,
             password: admin
           },
-          json: true
+          json: true,
+          followAllRedirects: true
         });
+        console.log('test', require('util').inspect(test, { colors: true, depth: 1 }));
       } catch (error) {
         expect(error).to.have.property('statusCode', 302);
       }

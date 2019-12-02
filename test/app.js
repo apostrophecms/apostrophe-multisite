@@ -12,12 +12,12 @@ module.exports = async function(options = {}) {
     'apostrophe-templates': {}
   };
 
-  return await require('../index.js')({
-    sites: modules,
-    dashboard: modules,
+  return require('../index.js')({
+    sites: { modules },
+    dashboard: { modules },
     sessionSecret: 'test123',
     port: options.port || 3000,
     dashboardHostname: 'dashboard.test',
-    shortNamePrefix: options.shortNamePrefix || 'test-multi-',
+    shortNamePrefix: options.shortNamePrefix || 'test-multi-'
   });
 };

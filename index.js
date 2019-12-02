@@ -2,17 +2,16 @@ const _ = require('lodash');
 const mongo = require('mongodb');
 const fs = require('fs');
 const argv = require('boring')();
-const quote = require('shell-quote').quote;
 const Promise = require('bluebird');
 const uploadfs = require('uploadfs');
 const mkdirp = require('mkdirp');
 
 module.exports = async function(options) {
-  let self = {};
+  const self = {};
   // apos objects by site _id
   const aposes = {};
   const aposUpdatedAt = {};
-  let multisiteOptions;
+  const multisiteOptions = options;
 
   // Public API
 
@@ -74,7 +73,6 @@ module.exports = async function(options) {
   // Implementation
 
   let local = {};
-  let lockDepth = 0;
   if (fs.existsSync(getRootDir() + '/data/local.js')) {
     local = require(getRootDir() + '/data/local.js');
   }
@@ -120,8 +118,6 @@ module.exports = async function(options) {
     options.env = process.env.ENV;
   }
 
-  multisiteOptions = options;
-
   // All sites running under this process share a mongodb connection object
   const db = await mongo.MongoClient.connect(options.mongodbUrl, {
     autoReconnect: true,
@@ -144,14 +140,12 @@ module.exports = async function(options) {
       options.dashboardHostname = options.dashboardHostname.split(',');
     }
     if (!Array.isArray(options.dashboardHostname)) {
-      options.dashboardHostname = [ options.dashboardHostname ];
+      options.dashboardHostname = [options.dashboardHostname];
     }
   }
   if (!options.sessionSecret) {
     throw new Error('You must configure the sessionSecret option or set the SESSION_SECRET environment variable.');
   }
-  const lowPort = parseInt(process.env.LOW_PORT || '4000');
-  const totalPorts = parseInt(process.env.TOTAL_PORTS || '50000');
 
   let dashboard;
 
@@ -193,17 +187,29 @@ module.exports = async function(options) {
   janitor();
 
   let server;
+
   if (options.server) {
     // Legacy
     const parts = options.server.split(':');
     if ((!parts) || (parts < 2)) {
       throw new Error('server option or SERVER environment variable is badly formed, must be address:port');
     }
-    console.log('Proxy listening on port ' + parts[1]);
+    console.log('Proxy listening on port ' + parts[1]); // eslint-disable-line no-console
     server = app.listen(parts[1]);
   } else {
-    console.log('Proxy listening on port ' + options.port);
+    console.log('Proxy listening on port ' + options.port); // eslint-disable-line no-console
     server = app.listen(options.port);
+  }
+
+  await require('util').promisify(waitForServer)();
+
+  function waitForServer(callback) {
+    server.on('listening', function() {
+      return callback(null);
+    });
+    server.on('error', function(e) {
+      return callback(e);
+    });
   }
 
   return {
@@ -227,8 +233,6 @@ module.exports = async function(options) {
   }
 
   async function sitesMiddleware(req, res, next) {
-    // console.log(req.get('Host') + ':' + req.url);
-    const sites = dashboard.modules && dashboard.modules.sites;
     let site = req.get('Host');
     const matches = (site || '').match(/^([^\:]+)/);
     if (!matches) {
@@ -254,9 +258,9 @@ module.exports = async function(options) {
   }
 
   async function getLiveSiteByHostname(name) {
-    return await dashboard.docs.db.findOne({
+    return dashboard.docs.db.findOne({
       type: 'site',
-      hostnames: { $in: [ name ] },
+      hostnames: { $in: [name] },
       // For speed and because they can have their own users and permissions
       // at page level, which works just fine, we do not implement the entire
       // Apostrophe permissions stack with regard to the site object before
@@ -272,7 +276,7 @@ module.exports = async function(options) {
   function log(site, msg) {
     if (process.env.VERBOSE) {
       const name = (site.hostnames && site.hostnames[0]) || site._id;
-      console.log(name + ': ' + msg);
+      console.log(name + ': ' + msg); // eslint-disable-line no-console
     }
   }
 
@@ -285,7 +289,6 @@ module.exports = async function(options) {
     log(site, 'Spinning up...');
     aposes[site._id] = 'pending';
 
-    let apos;
     const runner = Promise.promisify(run);
     let siteOptions;
     if ((typeof options.sites) === 'function') {
@@ -297,9 +300,8 @@ module.exports = async function(options) {
       ...siteOptions,
       ..._options
     };
-    apos = await runner(siteOptions);
 
-    return apos;
+    return runner(siteOptions);
 
     function run(config, callback) {
 
@@ -594,7 +596,7 @@ module.exports = async function(options) {
             // coming from an npm module. -Tom
             'sites-base': require('./lib/sites-base.js'),
 
-            'sites': {
+            sites: {
               extend: 'sites-base',
               alias: 'sites'
             }
@@ -630,12 +632,13 @@ module.exports = async function(options) {
         }
       }
     );
+    let site;
     site = argv.site.toLowerCase();
     site = await dashboard.docs.db.findOne({
       type: 'site',
       $or: [
         {
-          hostnames: { $in: [ site ] }
+          hostnames: { $in: [site] }
         },
         {
           _id: site
@@ -717,7 +720,7 @@ module.exports = async function(options) {
         site.theme = argv.theme;
       }
       await dashboard.sites.insert(req, site);
-      sites = [ site ];
+      sites = [site];
     } else {
       sites = await dashboard.sites.find(req, {}).toArray();
     }
@@ -727,7 +730,7 @@ module.exports = async function(options) {
       spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8', stdio: 'inherit' });
     });
     if (options.temporary) {
-      console.log(`Dropping ${multisiteOptions.shortNamePrefix + sites[0]._id}`);
+      console.log(`Dropping ${multisiteOptions.shortNamePrefix + sites[0]._id}`); // eslint-disable-line no-console
       await db.db(multisiteOptions.shortNamePrefix + sites[0]._id).dropDatabase();
       await dashboard.docs.db.remove({ _id: sites[0]._id });
     }
@@ -757,11 +760,11 @@ module.exports = async function(options) {
       startedAt: -1
     });
     try {
-      await dashboard.locks.lock(`all-${task}`);     
+      await dashboard.locks.lock(`all-${task}`);
       locked = true;
       const safe = new Date();
       safe.setMinutes(safe.getMinutes() - guard);
-      const last = await taskLog.findOne({ 
+      const last = await taskLog.findOne({
         task: `all-${task}`,
         startedAt: {
           $gte: safe
@@ -822,11 +825,11 @@ module.exports = async function(options) {
       startedAt: -1
     });
     try {
-      await dashboard.locks.lock(`dashboard-${task}`);     
+      await dashboard.locks.lock(`dashboard-${task}`);
       locked = true;
       const safe = new Date();
       safe.setMinutes(safe.getMinutes() - guard);
-      const last = await taskLog.findOne({ 
+      const last = await taskLog.findOne({
         task: `dashboard-${task}`,
         startedAt: {
           $gte: safe
@@ -841,8 +844,6 @@ module.exports = async function(options) {
         startedAt: new Date()
       });
 
-      const req = dashboard.tasks.getReq();
-      const sites = await dashboard.sites.find(req, {}).toArray();
       const args = process.argv.slice(1);
       args[args.findIndex(arg => arg === 'tasks')] = task;
       args.push('--site=dashboard');
@@ -885,10 +886,6 @@ module.exports = async function(options) {
   function getNpmPath(root, type) {
     const npmResolve = require('resolve');
     return npmResolve.sync(type, { basedir: getRootDir() });
-  }
-
-  function hostnameOnly(server) {
-    return server.replace(/\:\d+$/, '');
   }
 
   // Periodically free apos objects allocated to serve sites that
