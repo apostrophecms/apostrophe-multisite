@@ -291,7 +291,7 @@ VERBOSE=1 node app
 
 By default, `sites` come with three url fields in their schema that correspond to three server environments: `dev`, `staging`, and `prod`. From the Dashboard, you are able to set the `baseUrl` property of each site within each environment.
 
-Or you can add a configuration in the dashboard:
+Or, you can add a configuration in the dashboard that maps all sites to subdomains of certain working domains, one for dev, one for staging, and one for prod:
 
 ```javascript
 // app.js
@@ -300,7 +300,7 @@ require('apostrophe-multisite')({
     modules: {
       'sites': {
         baseUrlDomains: {
-          dev: 'test',
+          dev: 't:3000',
           staging: 'test.dev',
           prod: 'test.com'
         },
@@ -317,7 +317,9 @@ require('apostrophe-multisite')({
 
 ```
 
-This way, the three url fields (dev, staging, and prod) will not be part of the site's schema but two other fields will appear: shortname and production hostname. The shortname will be added to the baseUrlDomains environments and hostnames will be inferred from this. For instance, if the shortname is `shortname`, the staging environment would be `shortname.test.dev` in the example above. If the production hostname is filled, the prod url will replace `test.com`. The production hostname will also be duplicated in the hostnames array (one version with `www.`, one version without).
+> It is essential to add the port number you plan to test on to your `dev` entry in `baseUrlDomains`, as shown above.
+
+This way, the three url fields (dev, staging, and prod) will not be part of the site's schema but two other fields will appear: shortname and production hostname. The shortname will be added to the baseUrlDomains and hostnames will be inferred from this. For instance, if the shortname is `shortname`, the staging environment would be `shortname.test.dev` in the example above. If the production hostname is filled in, it will replace `test.com`. The production hostname will also be duplicated in the hostnames array (one version with `www.`, one version without) so that both names work.
 
 If sites were created using the default method, after having added the `baseUrlDomains` config, it is possible to run the task `node app sites:transition-shortname --site=dashboard` to fill shortname for each site base on the first hostname if it existed.
 
