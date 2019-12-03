@@ -31,9 +31,9 @@ jobs:
           command: |
             set -x
             docker-compose up
-      - run:
-          name: test
-          command: docker-compose exec backend npm test
+      # - run:
+      #     name: test
+      #     command: docker-compose exec backend npm test
       - run:
           name: code-coverage
           command: './node_modules/.bin/nyc report --reporter=text-lcov'
