@@ -1,0 +1,29 @@
+version: '3'
+
+services:
+  db:
+    container_name: db
+    image: mongo
+    volumes:
+      - mongodata:/data/db
+
+  backend:
+    container_name: backend
+    build: .
+    volumes:
+      - ./test:/app/test
+    depends_on:
+      - db
+    extra_hosts:
+      - dashboard.test:127.0.0.1
+      - site.test:127.0.0.1
+      - site2.test:127.0.0.1
+    command: "${TEST_CMD:-npm run test}"
+    environment:
+      MONGODB_PORT: 27017
+      MONGODB_SERVER: db
+      NODE_ENV: ${NODE_ENV:-production}
+      NODE_APP_INSTANCE: docker
+
+volumes:
+  mongodata:

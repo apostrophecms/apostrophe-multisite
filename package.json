@@ -4,7 +4,11 @@
   "description": "Multisite support for the Apostrophe CMS. Create & manage multiple sites with the same configuration and host them efficiently.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "test": "nyc mocha --timeout=10000 --exit",
+    "test:cover": "nyc --reporter=html npm test && open-cli ./coverage/index.html",
+    "test:watch": "mocha --timeout=10000 --watch"
   },
   "engines": {
     "node": ">=8.0.0"
@@ -41,5 +45,23 @@
   },
   "peerDependencies": {
     "apostrophe": "^2.0.0"
+  },
+  "devDependencies": {
+    "apostrophe": "^2.100.1",
+    "chai": "^4.2.0",
+    "del": "^5.1.0",
+    "eslint": "^6.7.2",
+    "eslint-config-apostrophe": "^3.0.0",
+    "eslint-config-standard": "^14.1.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-node": "^10.0.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^4.0.1",
+    "mocha": "^6.2.2",
+    "nyc": "^14.1.1",
+    "open-cli": "^5.0.0",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.5",
+    "server-destroy": "^1.0.1"
   }
 }
