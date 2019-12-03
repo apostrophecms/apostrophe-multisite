@@ -1,5 +1,13 @@
 NOTE: see the STABILITY note in the README.
 
+# 2.1.1
+
+Fixed an oversight that would crash if the site had no shortName or slug yet in beforeSave (this issue existed briefly in 2.1.0).
+
+# 2.1.0
+
+The new `baseUrlDomains` option provides a friendly alternative to the current confusing system of `devBaseUrl`, `stagingBaseUrl`, `prodBaseUrl` and `hostnames` fields. These properties still exist "under the hood," but are configured automatically based solely on a "short name" and, when the time comes, a "production hostname" provided by the admin. `baseUrlDomains` can have three properties: `dev`, `staging`, and `prod`. These are the domains to use in each of those three environments, as determined by the `ENV` environment variable. If the short name is `nifty`, `ENV` is `dev`, and the `dev` subproperty of `baseUrlDomains` is set to `t:3000`, the hostname will be `nifty.t` and URLs will include port 3000. If the short name is `nifty`, `ENV` is `staging`, and the `staging` subproperty of `baseUrlDomains` is set to `staging-platform.com`, the short name is `nifty.staging-platform.com` and there is no port number in the URL. When using this system staging and production always automatically include `https` in their URLs.
+
 # 2.0.7
 
 You can now schedule simple daily and hourly Apostrophe command line tasks across a cluster without encountering duplicate execution. See the README for details.
