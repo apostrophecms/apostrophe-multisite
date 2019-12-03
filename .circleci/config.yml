@@ -1,8 +1,10 @@
 version: 2.1
 jobs:
   build:
-    machine:
-      image: ubuntu-1604:201903-01
+    # working_directory: ~/apostrophe-multisite
+    docker:
+      - image: node:12
+      - image: mongo:4.2
     steps:
       - checkout
       - run:
@@ -17,21 +19,26 @@ jobs:
           key: dependency-cache-{{ checksum "package-lock.json" }}
           paths:
             - ./node_modules
-      - run:
-          name: Install Docker Compose
-          command: |
-            curl -L https://github.com/docker/compose/releases/download/1.19.0/docker-compose-`uname -s`-`uname -m` > ~/docker-compose
-            chmod +x ~/docker-compose
-            mv ~/docker-compose /usr/local/bin/docker-compose
+      # - run:
+      #     name: Install Docker Compose
+      #     command: |
+      #       curl -L https://github.com/docker/compose/releases/download/1.19.0/docker-compose-`uname -s`-`uname -m` > ~/docker-compose
+      #       chmod +x ~/docker-compose
+      #       mv ~/docker-compose /usr/local/bin/docker-compose
       # - setup_remote_docker
       - run:
-          name: Start container and verify it is working
+          name: update host file
           command: |
-            set -x
-            docker-compose up
+            echo 127.0.0.1 dashboard.test site.test site2.test | tee -a /etc/hosts
+            cat /etc/hosts
       # - run:
-      #     name: test
-      #     command: docker-compose exec backend npm test
+      #     name: Start container and verify it is working
+      #     command: |
+      #       set -x
+      #       docker-compose up
+      - run:
+          name: test
+          command: npm test
       - run:
           name: code-coverage
           command: './node_modules/.bin/nyc report --reporter=text-lcov'
