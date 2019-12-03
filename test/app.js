@@ -18,6 +18,7 @@ module.exports = async function(options = {}) {
     sessionSecret: 'test123',
     port: options.port || 3000,
     dashboardHostname: 'dashboard.test',
-    shortNamePrefix: options.shortNamePrefix || 'test-multi-'
+    shortNamePrefix: options.shortNamePrefix || 'test-multi-',
+    mongodbUrl: options.mongodbUrl || 'mongodb://localhost:27017'
   });
 };
