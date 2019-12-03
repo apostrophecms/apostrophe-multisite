@@ -1,11 +1,8 @@
 version: 2.1
 jobs:
   build:
-    machine: true
-    working_directory: ~/apostrophe-multisite
-    docker:
-      - image: node:12
-      - image: mongo:4.2
+    machine:
+      image: ubuntu-1604:201903-01
     steps:
       - checkout
       - run:
