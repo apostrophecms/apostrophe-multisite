@@ -18,7 +18,7 @@ services:
       - dashboard.test:127.0.0.1
       - site.test:127.0.0.1
       - site2.test:127.0.0.1
-    command: "${TEST_CMD:-tail -f /dev/null}"
+    command: "${TEST_CMD:-npm run test}"
     environment:
       MONGODB_PORT: 27017
       MONGODB_SERVER: db
