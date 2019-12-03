@@ -35,11 +35,11 @@ describe('Apostrophe-multisite', function() {
       await del(['./test/sites/data']);
 
       // find and remove test dbs
-      const mongoUrl =
+      const mongodbUrl =
         process.env.MONGODB_SERVER && process.env.MONGODB_PORT
           ? `mongodb://${process.env.MONGODB_SERVER}:${process.env.MONGODB_PORT}`
           : 'mongodb://localhost:27017';
-      const db = await mongo.MongoClient.connect(mongoUrl);
+      const db = await mongo.MongoClient.connect(mongodbUrl);
       const adminDb = db.admin();
       const { databases } = await adminDb.listDatabases();
       for (const db of databases) {
@@ -58,7 +58,7 @@ describe('Apostrophe-multisite', function() {
       }
 
       // configure fake app using apostrophe-multisite
-      multisite = await apostropheMultisite({ port, shortNamePrefix });
+      multisite = await apostropheMultisite({ port, shortNamePrefix, mongodbUrl });
       sites = multisite.dashboard.sites;
       site = sites.newInstance();
       req = multisite.dashboard.tasks.getReq();
