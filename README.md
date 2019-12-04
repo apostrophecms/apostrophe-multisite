@@ -1,5 +1,7 @@
 # apostrophe-multisite
 
+[![CircleCI](https://circleci.com/gh/apostrophecms/apostrophe-multisite.svg?style=svg)](https://circleci.com/gh/apostrophecms/apostrophe-multisite)
+
 ## A work in progress
 
 Despite the version number we have NOT officially declared this module stableyet. Those using it in production are strongly advised to join our [Apostrophe Enterprise Support program](https://apostrophecms.org/support/enterprise-support). Note: you **do not** need this module in most Apostrophe projects. It is designed to support projects that require many independently edited sites with the same source code and configuration.
@@ -229,7 +231,7 @@ right time.
 
 Apostrophe will use locks and check the most recent start
 time to avoid redundancy.
- 
+
 ## Code and templates for the hosted sites
 
 These live in `sites/lib/modules` of your project.
@@ -341,3 +343,15 @@ You can create your own environment names by adding url fields to your `sites` p
 
 The `ENV` environment variable determines which environment will be used. If it is `prod` for example, the url used will be the one defined in the schema or in the sites configuration for `prod`.
 
+## Project contribution
+
+### Run tests
+
+Tests can be run locally if hosts are on your machine with `sudo nano /etc/hosts` on Linux or MacOs.
+Add this line to the `/etc/hosts` file: `127.0.0.1 dashboard.test site.test site2.test` and save.
+
+If modification of the hosts file is not an option, tests can be run through Docker by installer Docker and docker-compose. Then, run `docker-compose up`. By default, it will launch `npm test`. You can also add a `TEST_CMD` variable to launch another command. For example, `TEST_CMD='npm run test:watch' docker-compose up` to launch tests in watch mode and reload tests as you modify them.
+
+### Code linting
+
+When contributing to this project, run `npm run lint` before pushing code in order to facilitate code review.
