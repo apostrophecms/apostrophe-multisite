@@ -1,5 +1,10 @@
 NOTE: see the STABILITY note in the README.
 
+# 2.2.0
+
+* The object returned by `apostrophe-multisite` now has `getSiteApos`, `dashboard` and `server` properties.
+* A suite of tests is now included. These tests require specific entries in `/etc/hosts` (see the README) or you can use the provided Docker files to run them.
+
 # 2.1.1
 
 Fixed an oversight that would crash if the site had no shortName or slug yet in beforeSave (this issue existed briefly in 2.1.0).
