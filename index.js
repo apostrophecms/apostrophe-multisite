@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const mongo = require('mongodb');
+const mongo = require('emulate-mongo-2-driver');
 const fs = require('fs');
 const argv = require('boring')();
 const Promise = require('bluebird');
