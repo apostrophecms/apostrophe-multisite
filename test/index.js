@@ -1,5 +1,5 @@
 const del = require('del');
-const mongo = require('mongodb');
+const mongo = require('emulate-mongo-2-driver');
 const { expect } = require('chai');
 const rp = require('request-promise');
 const enableDestroy = require('server-destroy');
@@ -44,14 +44,7 @@ describe('Apostrophe-multisite', function() {
       const { databases } = await adminDb.listDatabases();
       for (const db of databases) {
         if (db.name.match('[^,]*' + shortNamePrefix + '*')) {
-          const client = new mongo.Db(
-            db.name,
-            new mongo.Server(
-              process.env.MONGODB_SERVER || 'localhost',
-              process.env.MONGODB_PORT || 27017
-            )
-          );
-          await client.open();
+          const client = await mongo.MongoClient.connect(mongodbUrl + '/' + db.name);
           await client.dropDatabase();
           console.log('\x1b[36m%s\x1b[0m', `Test db ${db.name} dropped`);
         }
