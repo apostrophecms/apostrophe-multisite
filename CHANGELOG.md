@@ -1,5 +1,9 @@
 NOTE: see the STABILITY note in the README.
 
+# 2.2.1
+
+* Set protocol properly for `prodBaseUrl` when `prodHostname` is set.
+
 # 2.2.0
 
 * The object returned by `apostrophe-multisite` now has `getSiteApos`, `dashboard` and `server` properties.
