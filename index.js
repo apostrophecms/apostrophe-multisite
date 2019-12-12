@@ -723,7 +723,10 @@ module.exports = async function(options) {
     const spawn = require('child_process').spawnSync;
     sites.forEach(site => {
       log(site, 'running task');
-      spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8', stdio: 'inherit' });
+      const result = spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8', stdio: 'inherit' });
+      if (result.error) {
+        throw result.error;
+      }
     });
     if (options.temporary) {
       console.log(`Dropping ${multisiteOptions.shortNamePrefix + sites[0]._id}`); // eslint-disable-line no-console
