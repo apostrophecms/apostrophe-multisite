@@ -724,8 +724,8 @@ module.exports = async function(options) {
     sites.forEach(site => {
       log(site, 'running task');
       const result = spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8', stdio: 'inherit' });
-      if (result.error) {
-        throw result.error;
+      if (result.status !== 0) {
+        throw new Error(result.status || ('exited on signal ' + result.signal));
       }
     });
     if (options.temporary) {
