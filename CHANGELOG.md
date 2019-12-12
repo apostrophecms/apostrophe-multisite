@@ -1,5 +1,13 @@
 NOTE: see the STABILITY note in the README.
 
+# 2.2.3
+
+* Exit with a nonzero status code if a task run via `--all-sites` or `--temporary-site` exits with a nonzero status code. Also exit with a nonzero status code if such a task exits due to a signal.
+
+# 2.2.2
+
+* Do not permit entry of whitespace in the `shortName` schema field of sites, which is invalid and can cause problems down the road for proxy scripts.
+
 # 2.2.1
 
 * Set protocol properly for `prodBaseUrl` when `prodHostname` is set.
