@@ -1,5 +1,9 @@
 NOTE: see the STABILITY note in the README.
 
+# 2.3.0
+
+* Dependencies updated to require at least version 2.101.0 of ApostropheCMS. This was done to ensure no npm audit vulnerabilities.
+
 # 2.2.3
 
 * Exit with a nonzero status code if a task run via `--all-sites` or `--temporary-site` exits with a nonzero status code. Also exit with a nonzero status code if such a task exits due to a signal.
