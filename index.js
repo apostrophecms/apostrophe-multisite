@@ -199,6 +199,16 @@ module.exports = async function(options) {
     server = app.listen(options.port);
   }
 
+  // keepalive timeout should be longer than that of nginx or
+  // AWS ELB to avoid nasty race conditions resulting in
+  // a low but frustrating percentage of failed requests. The
+  // default keepalive timeout of nodejs is 5 seconds, which
+  // isn't right for anybody using this module:
+  //
+  // https://shuheikagawa.com/blog/2019/04/25/keep-alive-timeout/
+
+  server.keepAliveTimeout = options.keepAliveTimeout || (100 * 1000);
+
   await require('util').promisify(waitForServer)();
 
   function waitForServer(callback) {

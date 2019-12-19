@@ -1,5 +1,9 @@
 NOTE: see the STABILITY note in the README.
 
+# 2.3.1
+
+* Set server.keepAliveTimeout to 100 seconds by default, and provide an option to override. The default of Node.js is 5 seconds, which is shorter than that of most reverse proxies and also just about right to cause problems for Apostrophe's notification long polls, leading to a race condition and mysteriously stuck or dropped requests. See: https://shuheikagawa.com/blog/2019/04/25/keep-alive-timeout/
+
 # 2.3.0
 
 * Dependencies updated to require at least version 2.101.0 of ApostropheCMS. This was done to ensure no npm audit vulnerabilities.

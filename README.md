@@ -35,6 +35,11 @@ const multi = require('apostrophe-multisite')({
   // Session secret. Please use a unique string.
   sessionSecret: 'thisismadeup',
 
+  // This is our default HTTP Keep-Alive time, in ms, for reuse of
+  // connections. Should be longer than that of the reverse proxy
+  // (nginx: 75 seconds, AWS ELB: 60 seconds, etc)
+  keepAliveTimeout: 100 * 1000,
+
   // Apostrophe configuration for your hosted sites.
   // Just one config for all of them; per-site config could be
   // user editable settings in apostrophe-global.
