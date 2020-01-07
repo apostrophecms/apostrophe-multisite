@@ -5,6 +5,7 @@ const argv = require('boring')();
 const Promise = require('bluebird');
 const uploadfs = require('uploadfs');
 const mkdirp = require('mkdirp');
+const util = require('util');
 
 module.exports = async function(options) {
   const self = {};
@@ -158,7 +159,13 @@ module.exports = async function(options) {
   }
 
   if (argv['all-sites']) {
-    return runTaskOnAllSites();
+    // --without-forking option runs the task without a separate child process
+    // for each site, avoiding overhead but also compatible only with tasks
+    // that end politely without exiting the process on their own
+    return runTaskOnAllSites({
+      withoutForking: argv['without-forking'],
+      concurrency: argv['concurrency'] ? parseInt(argv['concurrency']) : 1
+    });
   }
 
   if (argv._[0] === 'tasks') {
@@ -209,7 +216,7 @@ module.exports = async function(options) {
 
   server.keepAliveTimeout = options.keepAliveTimeout || (100 * 1000);
 
-  await require('util').promisify(waitForServer)();
+  await util.promisify(waitForServer)();
 
   function waitForServer(callback) {
     server.on('listening', function() {
@@ -234,7 +241,7 @@ module.exports = async function(options) {
     if (!_.includes(options.dashboardHostname, site)) {
       return next();
     }
-    log(dashboard, 'matches request');
+    log(dashboard, 'debug', 'matches request');
     return dashboard.app(req, res);
   }
 
@@ -250,7 +257,7 @@ module.exports = async function(options) {
     if (!site) {
       return options.orphan(req, res);
     }
-    log(site, 'matches request');
+    log(site, 'debug', 'matches request');
     (await self.getSiteApos(site)).app(req, res);
   }
 
@@ -279,10 +286,23 @@ module.exports = async function(options) {
     });
   }
 
-  function log(site, msg) {
-    if (process.env.VERBOSE) {
-      const name = (site.hostnames && site.hostnames[0]) || site._id;
-      console.log(name + ': ' + msg); // eslint-disable-line no-console
+  function log(site, level, msg) {
+    const name = site.shortName || (site.hostnames && site.hostnames[0]) || site.slug || site._id;
+    const logLevels = (process.env.LOG_LEVEL || (process.env.VERBOSE ? 'info,debug,warn,error' : 'warn,error')).split(/,\s*/);
+    if (logLevels.includes(level)) {
+      if ((level === 'warn') || (level === 'error')) {
+        if (argv['site']) {
+          console.error(msg); // eslint-disable-line no-console
+        } else {
+          console.error(name + ': ' + msg); // eslint-disable-line no-console
+        }
+      } else {
+        if (argv['site']) {
+          console.log(msg); // eslint-disable-line no-console
+        } else {
+          console.log(name + ': ' + msg); // eslint-disable-line no-console
+        }
+      }
     }
   }
 
@@ -292,7 +312,7 @@ module.exports = async function(options) {
 
   async function spinUp(site, _options) {
 
-    log(site, 'Spinning up...');
+    log(site, 'info', 'Spinning up...');
     aposes[site._id] = 'pending';
 
     const runner = Promise.promisify(run);
@@ -361,6 +381,25 @@ module.exports = async function(options) {
 
             'apostrophe-templates': {
               viewsFolderFallback: viewsFolderFallback
+            },
+
+            'apostrophe-utils': {
+              logger: function(apos) {
+                return {
+                  info: function(format, ...args) {
+                    return log(site, 'info', util.format(format, ...args));
+                  },
+                  debug: function(format, ...args) {
+                    return log(site, 'debug', util.format(format, ...args));
+                  },
+                  warn: function(format, ...args) {
+                    return log(site, 'warn', util.format(format, ...args));
+                  },
+                  error: function(format, ...args) {
+                    return log(site, 'error', util.format(format, ...args));
+                  }
+                };
+              }
             },
 
             'apostrophe-express': {
@@ -490,7 +529,7 @@ module.exports = async function(options) {
 
   async function spinUpDashboard(config) {
 
-    log({ _id: 'dashboard' }, 'Spinning up dashboard site...');
+    log({ _id: 'dashboard' }, 'info', 'Spinning up dashboard site...');
 
     // TODO: this function has a lot of code in common with spinUp.
     // Think about that. Should we support multiple constellations of
@@ -499,7 +538,7 @@ module.exports = async function(options) {
 
     const finalConfig = _.merge({}, options.dashboard || {}, config);
 
-    const apos = await require('util').promisify(run)(finalConfig);
+    const apos = await util.promisify(run)(finalConfig);
 
     return apos;
 
@@ -601,6 +640,26 @@ module.exports = async function(options) {
             // to extend it easily project-level as if it were
             // coming from an npm module. -Tom
             'sites-base': require('./lib/sites-base.js'),
+
+            'apostrophe-utils': {
+              logger: function(apos) {
+                const site = { _id: 'dashboard' };
+                return {
+                  info: function(format, ...args) {
+                    return log(site, 'info', util.format(format, ...args));
+                  },
+                  debug: function(format, ...args) {
+                    return log(site, 'debug', util.format(format, ...args));
+                  },
+                  warn: function(format, ...args) {
+                    return log(site, 'warn', util.format(format, ...args));
+                  },
+                  error: function(format, ...args) {
+                    return log(site, 'error', util.format(format, ...args));
+                  }
+                };
+              }
+            },
 
             sites: {
               extend: 'sites-base',
@@ -730,21 +789,33 @@ module.exports = async function(options) {
     } else {
       sites = await dashboard.sites.find(req, {}).toArray();
     }
-    const spawn = require('child_process').spawnSync;
-    sites.forEach(site => {
-      log(site, 'running task');
-      const result = spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8', stdio: 'inherit' });
-      if (result.status !== 0) {
-        throw new Error(result.status || ('exited on signal ' + result.signal));
-      }
-    });
+    if (options.withoutForking) {
+      await Promise.map(sites, runOne, { concurrency: options.concurrency || 1 });
+    } else {
+      const spawn = require('child_process').spawnSync;
+      sites.forEach(site => {
+        log(site, 'info', `running task ${argv._[0]}`);
+        const result = spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8', stdio: 'inherit' });
+        if (result.status !== 0) {
+          throw new Error(result.status || ('exited on signal ' + result.signal));
+        }
+      });
+    }
     if (options.temporary) {
-      console.log(`Dropping ${multisiteOptions.shortNamePrefix + sites[0]._id}`); // eslint-disable-line no-console
+      log(site, 'debug', `Dropping ${multisiteOptions.shortNamePrefix + sites[0]._id}`); // eslint-disable-line no-console
       await db.db(multisiteOptions.shortNamePrefix + sites[0]._id).dropDatabase();
       await dashboard.docs.db.remove({ _id: sites[0]._id });
     }
     // Our job to exit since we know the tasks are all complete already
     process.exit(0);
+
+    async function runOne(site) {
+      log(site, 'info', `running task ${argv._[0]}`);
+      const apos = await self.getSiteApos(site, { argv: { _: [] } });
+      const task = apos.tasks.find(argv._[0]);
+      await apos.tasks.invoke(argv._[0], argv._.slice(1), argv);
+      await Promise.promisify(apos.destroy)();
+    }
   }
 
   // Run the named task, with no extra arguments, on all sites,
@@ -791,11 +862,11 @@ module.exports = async function(options) {
       const req = dashboard.tasks.getReq();
       const sites = await dashboard.sites.find(req, {}).toArray();
       for (const site of sites) {
-        log(site, 'running ' + task);
+        log(site, 'info', 'running ' + task);
         const args = process.argv.slice(1);
         args[args.findIndex(arg => arg === 'tasks')] = task;
         args.push('--site=' + site._id);
-        await require('util').promisify(spawn)(process.argv[0], args, { encoding: 'utf8', stdio: 'inherit' });
+        await util.promisify(spawn)(process.argv[0], args, { encoding: 'utf8', stdio: 'inherit' });
       }
     } finally {
       if (locked) {
@@ -856,7 +927,7 @@ module.exports = async function(options) {
       const args = process.argv.slice(1);
       args[args.findIndex(arg => arg === 'tasks')] = task;
       args.push('--site=dashboard');
-      await require('util').promisify(spawn)(process.argv[0], args, { encoding: 'utf8', stdio: 'inherit' });
+      await util.promisify(spawn)(process.argv[0], args, { encoding: 'utf8', stdio: 'inherit' });
     } finally {
       if (locked) {
         await dashboard.locks.unlock(`dashboard-${task}`);

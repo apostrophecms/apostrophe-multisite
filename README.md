@@ -186,6 +186,14 @@ To run a task for all hosted sites (not the dashboard):
 node app apostrophe-migrations:migrate --all-sites
 ```
 
+To run that task without forking a new process for each invocation, which works only with well-behaved tasks that don't try to exit the process on their own:
+
+```
+node app apostrophe-migrations:migrate --all-sites --without-forking --concurrency=3
+```
+
+This significantly improves performance. The appropriate level of `concurrency` depends on your task; you may leave this argument off.
+
 To run a task on a temporary "hosted" site which will be deleted after the task:
 
 ```
@@ -288,11 +296,19 @@ You need to persist `data`, `sites/data`, `dashboard/data`, `sites/public/upload
 
 ## Logging
 
-To log information to the console about each request, set the `VERBOSE` environment variable. For instance:
+By default only warnings and errors are logged. To log everything, set the VERBOSE environment variable:
 
 ```
 VERBOSE=1 node app
 ```
+
+You can also select one or more of the four possible logging levels:
+
+```
+LOG_LEVEL=info,debug,warn,error node app
+```
+
+`info` and `debug` are written to standard output, while `warn` and `error` are written to standard error. When not running a command line task on behalf of a single site, the output is prefaced with the shortname of the site responsible. TODO: provide options to replace this simple logger.
 
 ## Setting `baseUrl` and naming environments
 
