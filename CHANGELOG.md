@@ -1,5 +1,9 @@
 NOTE: see the STABILITY note in the README.
 
+# 2.4.1
+
+* 2.4.0 introduced a regression that broke `--temporary-site`. Fixed.
+
 # 2.4.0
 
 * When running a task with `--all-sites`, you can optionally add `--without-forking` to avoid the overhead of forking a separate node process for each site, as long as the task in question is well-behaved and does not attempt to exit the process by itself. This improves performance. You can also use `--concurrency=3` to run the task for three sites simultaneously, which can also help performance depending on the task. `--concurrency` has no effect without `--without-forking`. With numerous sites in play, the `apostrophe-migrations:migrate` task completes about 3x faster with `--without-forking --concurrency=3`, although the benefit of `--concurrency=3` is smaller than you might think.
