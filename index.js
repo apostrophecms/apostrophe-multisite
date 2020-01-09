@@ -802,7 +802,7 @@ module.exports = async function(options) {
       });
     }
     if (options.temporary) {
-      log({ _id: '_temporary' }, 'debug', `Dropping ${multisiteOptions.shortNamePrefix + sites[0]._id}`); // eslint-disable-line no-console
+      log(sites[0], 'debug', `Dropping ${multisiteOptions.shortNamePrefix + sites[0]._id}`); // eslint-disable-line no-console
       await db.db(multisiteOptions.shortNamePrefix + sites[0]._id).dropDatabase();
       await dashboard.docs.db.remove({ _id: sites[0]._id });
     }
