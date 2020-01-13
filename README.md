@@ -296,7 +296,9 @@ You need to persist `data`, `sites/data`, `dashboard/data`, `sites/public/upload
 
 ## Logging
 
-By default only warnings and errors are logged. To log everything, set the VERBOSE environment variable:
+By default only warnings and errors are logged when `NODE_ENV` is `production`. In development, everything islogged by default.
+
+To log everything in production, set the VERBOSE environment variable:
 
 ```
 VERBOSE=1 node app
