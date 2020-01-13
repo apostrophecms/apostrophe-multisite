@@ -241,7 +241,6 @@ module.exports = async function(options) {
     if (!_.includes(options.dashboardHostname, site)) {
       return next();
     }
-    log(dashboard, 'debug', 'matches request');
     return dashboard.app(req, res);
   }
 
@@ -257,7 +256,6 @@ module.exports = async function(options) {
     if (!site) {
       return options.orphan(req, res);
     }
-    log(site, 'debug', 'matches request');
     (await self.getSiteApos(site)).app(req, res);
   }
 
@@ -287,6 +285,11 @@ module.exports = async function(options) {
   }
 
   function log(site, level, msg) {
+    if (msg != null) {
+      msg = msg.toString();
+    } else {
+      msg = '';
+    }
     const name = site.shortName || (site.hostnames && site.hostnames[0]) || site.slug || site._id;
     const defaultLogLevels = (process.env.NODE_ENV === 'production') ? 'warn,error' : 'info,debug,warn,error';
     const logLevels = (process.env.LOG_LEVEL || (process.env.VERBOSE ? 'info,debug,warn,error' : defaultLogLevels)).split(/,\s*/);
@@ -295,13 +298,17 @@ module.exports = async function(options) {
         if (argv['site']) {
           console.error(msg); // eslint-disable-line no-console
         } else {
-          console.error(name + ': ' + msg); // eslint-disable-line no-console
+          // Trim the message because added blank lines do not read well
+          // in the presence of the site name prefix
+          console.error(name + ': ' + msg.trim()); // eslint-disable-line no-console
         }
       } else {
         if (argv['site']) {
           console.log(msg); // eslint-disable-line no-console
         } else {
-          console.log(name + ': ' + msg); // eslint-disable-line no-console
+          // Trim the message because added blank lines do not read well
+          // in the presence of the site name prefix
+          console.log(name + ': ' + msg.trim()); // eslint-disable-line no-console
         }
       }
     }
@@ -803,7 +810,6 @@ module.exports = async function(options) {
       });
     }
     if (options.temporary) {
-      log(sites[0], 'debug', `Dropping ${multisiteOptions.shortNamePrefix + sites[0]._id}`); // eslint-disable-line no-console
       await db.db(multisiteOptions.shortNamePrefix + sites[0]._id).dropDatabase();
       await dashboard.docs.db.remove({ _id: sites[0]._id });
     }
