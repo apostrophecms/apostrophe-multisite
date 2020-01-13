@@ -1,5 +1,9 @@
 NOTE: see the STABILITY note in the README.
 
+# 2.4.2
+
+* 2.4.0 introduced a new logger that distinguishes the output of the various sites, which is a good thing, and also does not output `apos.utils.log/apos.utils.info` or `apos.utils.debug` calls by default, which is good for production but bad for development. In 2.4.2 this was revised: if `NODE_ENV` is not `production`, the default is to log all output. Note that setting `NODE_ENV` to `production` is a widely followed best practice for servers. You can still set `VERBOSE=1` to override this, or set `LOG_LEVELS` to any comma-separated combination of `info`, `debug`, `warn` and `error`.
+
 # 2.4.1
 
 * 2.4.0 introduced a regression that broke `--temporary-site`. Fixed.

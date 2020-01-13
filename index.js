@@ -288,7 +288,8 @@ module.exports = async function(options) {
 
   function log(site, level, msg) {
     const name = site.shortName || (site.hostnames && site.hostnames[0]) || site.slug || site._id;
-    const logLevels = (process.env.LOG_LEVEL || (process.env.VERBOSE ? 'info,debug,warn,error' : 'warn,error')).split(/,\s*/);
+    const defaultLogLevels = (process.env.NODE_ENV === 'production') ? 'warn,error' : 'info,debug,warn,error';
+    const logLevels = (process.env.LOG_LEVEL || (process.env.VERBOSE ? 'info,debug,warn,error' : defaultLogLevels)).split(/,\s*/);
     if (logLevels.includes(level)) {
       if ((level === 'warn') || (level === 'error')) {
         if (argv['site']) {
