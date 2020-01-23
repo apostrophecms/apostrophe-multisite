@@ -13,6 +13,13 @@ module.exports = async function(options) {
   const aposes = {};
   const aposUpdatedAt = {};
   const multisiteOptions = options;
+  let requests = 0;
+  let pending = 0;
+  let settleStart;
+  // Allows process.exit to be mocked out for tests
+  const exit = options.exit || function(code) {
+    return process.exit(code);
+  };
 
   // Public API
 
@@ -170,7 +177,7 @@ module.exports = async function(options) {
 
   if (argv._[0] === 'tasks') {
     await runScheduledTasksOnAllSites();
-    process.exit(0);
+    exit(0);
   }
 
   if (argv._.length) {
@@ -178,6 +185,13 @@ module.exports = async function(options) {
   }
 
   self.dashboard = await spinUpDashboard();
+
+  if (options.maxRequestsBeforeShutdown) {
+    console.log('* * * middleware being added');
+    app.use(maxRequestsBeforeShutdownMiddleware);
+  } else {
+    console.log('* * * nope');
+  }
 
   app.use(simpleUrlMiddleware);
 
@@ -230,6 +244,36 @@ module.exports = async function(options) {
   self.server = server
 
   return self;
+
+  function maxRequestsBeforeShutdownMiddleware(req, res, next) {
+    pending++;
+    res.on('end', function() {
+      pending--;
+      requests++;
+      console.log(`${pending} ${requests}`);
+      if (requests === options.maxRequestsBeforeShutdown) {
+        settleStart = (new Date()).getTime();
+        server.close(function() {
+          settleAndExit();
+        });
+      }
+    });
+    return next();
+    function settleAndExit() {
+      if (!pending) {
+        log({ _id: 'dashboard' }, 'info', 'Restarting due to maxRequestsBeforeShutdown option');
+        exit(0);
+      }
+      const now = (new Date()).getTime();
+      if ((now - settleStart) > ((options.restartTimeout || 60) * 1000)) {
+        log({ _id: 'dashboard' }, 'error', `Forcing restart after ${options.restartTimeout} seconds due to maxRequestsBeforeShutdown and restartTimeout options, there were ${pending} requests still pending`);
+        // Don't use exit(1) because this is not a situation where
+        // pm2 should consider not launching it again
+        exit(0);
+      }
+      setTimeout(settleAndExit, 100);
+    }
+  }
 
   function dashboardMiddleware(req, res, next) {
     let site = req.get('Host');
@@ -814,7 +858,7 @@ module.exports = async function(options) {
       await dashboard.docs.db.remove({ _id: sites[0]._id });
     }
     // Our job to exit since we know the tasks are all complete already
-    process.exit(0);
+    exit(0);
 
     async function runOne(site) {
       log(site, 'info', `running task ${argv._[0]}`);

@@ -17,6 +17,7 @@ describe('Apostrophe-multisite', function() {
     let sites;
     let site;
     let req;
+    let exited;
 
     const newSite = {
       title,
@@ -41,6 +42,7 @@ describe('Apostrophe-multisite', function() {
           : 'mongodb://localhost:27017';
       const db = await mongo.MongoClient.connect(mongodbUrl);
       const adminDb = db.admin();
+      const maxRequestsBeforeShutdown = 10;
       const { databases } = await adminDb.listDatabases();
       for (const db of databases) {
         if (db.name.match('[^,]*' + shortNamePrefix + '*')) {
@@ -50,8 +52,13 @@ describe('Apostrophe-multisite', function() {
         }
       }
 
+      function exit() {
+        // Mock out process.exit for the test
+        exited = true;
+      }
+
       // configure fake app using apostrophe-multisite
-      multisite = await apostropheMultisite({ port, shortNamePrefix, mongodbUrl });
+      multisite = await apostropheMultisite({ maxRequestsBeforeShutdown, exit, port, shortNamePrefix, mongodbUrl });
       sites = multisite.dashboard.sites;
       site = sites.newInstance();
       req = multisite.dashboard.tasks.getReq();
@@ -142,6 +149,32 @@ describe('Apostrophe-multisite', function() {
         resolveWithFullResponse: true
       });
       expect(response).to.have.property('statusCode', 302);
+    });
+    it('fetches new site home page eight more times', async function() {
+      for (let i = 0; (i < 8); i++) {
+        console.log(i);
+        const siteT = await rp(`http://site2.test:${port}/`);
+        expect(siteT).to.have.string('Home');
+      }
+      console.log('END');
+    });
+    it('eleventh request is refused', function(done) {
+      // Allow time for the server to close and stop refusing connections
+      // after the tenth request
+      console.log(exited);
+      setTimeout(async function() {
+        expect(exited).to.equal(true);
+        const response = await rp({
+          method: 'GET',
+          uri: `http://site2.test:${port}`,
+          json: true,
+          simple: false,
+          resolveWithFullResponse: true
+        });
+        console.log(response.statusCode);
+        expect(response).not.to.have.property('statusCode', 200);
+        done();
+      }, 500);
     });
   });
 });
