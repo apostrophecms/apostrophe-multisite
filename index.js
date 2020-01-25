@@ -6,6 +6,7 @@ const Promise = require('bluebird');
 const uploadfs = require('uploadfs');
 const mkdirp = require('mkdirp');
 const util = require('util');
+const createHttpTerminator = require('http-terminator').createHttpTerminator;
 
 module.exports = async function(options) {
   const self = {};
@@ -14,8 +15,7 @@ module.exports = async function(options) {
   const aposUpdatedAt = {};
   const multisiteOptions = options;
   let requests = 0;
-  let pending = 0;
-  let settleStart;
+  let additionalRequestsBeforeShutdown;
   // Allows process.exit to be mocked out for tests
   const exit = options.exit || function(code) {
     return process.exit(code);
@@ -187,10 +187,11 @@ module.exports = async function(options) {
   self.dashboard = await spinUpDashboard();
 
   if (options.maxRequestsBeforeShutdown) {
-    console.log('* * * middleware being added');
     app.use(maxRequestsBeforeShutdownMiddleware);
-  } else {
-    console.log('* * * nope');
+    if (options.additionalRequestsBeforeShutdown === undefined) {
+      options.additionalRequestsBeforeShutdown = 1000;
+    }
+    additionalRequestsBeforeShutdown = Math.round(Math.random() * options.additionalRequestsBeforeShutdown);
   }
 
   app.use(simpleUrlMiddleware);
@@ -246,33 +247,17 @@ module.exports = async function(options) {
   return self;
 
   function maxRequestsBeforeShutdownMiddleware(req, res, next) {
-    pending++;
-    res.on('end', function() {
-      pending--;
+    req.on('end', async function() {
       requests++;
-      console.log(`${pending} ${requests}`);
-      if (requests === options.maxRequestsBeforeShutdown) {
-        settleStart = (new Date()).getTime();
-        server.close(function() {
-          settleAndExit();
+      if (requests === (options.maxRequestsBeforeShutdown + additionalRequestsBeforeShutdown)) {
+        const httpTerminator = createHttpTerminator({
+          server
         });
+        await httpTerminator.terminate();
+        exit(0);
       }
     });
     return next();
-    function settleAndExit() {
-      if (!pending) {
-        log({ _id: 'dashboard' }, 'info', 'Restarting due to maxRequestsBeforeShutdown option');
-        exit(0);
-      }
-      const now = (new Date()).getTime();
-      if ((now - settleStart) > ((options.restartTimeout || 60) * 1000)) {
-        log({ _id: 'dashboard' }, 'error', `Forcing restart after ${options.restartTimeout} seconds due to maxRequestsBeforeShutdown and restartTimeout options, there were ${pending} requests still pending`);
-        // Don't use exit(1) because this is not a situation where
-        // pm2 should consider not launching it again
-        exit(0);
-      }
-      setTimeout(settleAndExit, 100);
-    }
   }
 
   function dashboardMiddleware(req, res, next) {

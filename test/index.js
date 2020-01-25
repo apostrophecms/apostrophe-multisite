@@ -4,6 +4,7 @@ const { expect } = require('chai');
 const rp = require('request-promise');
 const enableDestroy = require('server-destroy');
 const apostropheMultisite = require('./app.js');
+const Promise = require('bluebird');
 
 describe('Apostrophe-multisite', function() {
   describe('#dashboard', function() {
@@ -43,6 +44,7 @@ describe('Apostrophe-multisite', function() {
       const db = await mongo.MongoClient.connect(mongodbUrl);
       const adminDb = db.admin();
       const maxRequestsBeforeShutdown = 10;
+      const additionalRequestsBeforeShutdown = 5;
       const { databases } = await adminDb.listDatabases();
       for (const db of databases) {
         if (db.name.match('[^,]*' + shortNamePrefix + '*')) {
@@ -58,7 +60,7 @@ describe('Apostrophe-multisite', function() {
       }
 
       // configure fake app using apostrophe-multisite
-      multisite = await apostropheMultisite({ maxRequestsBeforeShutdown, exit, port, shortNamePrefix, mongodbUrl });
+      multisite = await apostropheMultisite({ maxRequestsBeforeShutdown, additionalRequestsBeforeShutdown, exit, port, shortNamePrefix, mongodbUrl });
       sites = multisite.dashboard.sites;
       site = sites.newInstance();
       req = multisite.dashboard.tasks.getReq();
@@ -150,31 +152,14 @@ describe('Apostrophe-multisite', function() {
       });
       expect(response).to.have.property('statusCode', 302);
     });
-    it('fetches new site home page eight more times', async function() {
-      for (let i = 0; (i < 8); i++) {
+    it('tries to fetch new site home page 20 more times with a significant delay between', async function() {
+      for (let i = 0; (i < 20); i++) {
         console.log(i);
         const siteT = await rp(`http://site2.test:${port}/`);
         expect(siteT).to.have.string('Home');
+        await Promise.delay(500);
       }
       console.log('END');
-    });
-    it('eleventh request is refused', function(done) {
-      // Allow time for the server to close and stop refusing connections
-      // after the tenth request
-      console.log(exited);
-      setTimeout(async function() {
-        expect(exited).to.equal(true);
-        const response = await rp({
-          method: 'GET',
-          uri: `http://site2.test:${port}`,
-          json: true,
-          simple: false,
-          resolveWithFullResponse: true
-        });
-        console.log(response.statusCode);
-        expect(response).not.to.have.property('statusCode', 200);
-        done();
-      }, 500);
     });
   });
 });

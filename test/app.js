@@ -20,6 +20,7 @@ module.exports = async function(options = {}) {
     dashboardHostname: 'dashboard.test',
     shortNamePrefix: options.shortNamePrefix || 'test-multi-',
     mongodbUrl: options.mongodbUrl || 'mongodb://localhost:27017',
-    maxRequestsBeforeShutdown: options.maxRequestsBeforeShutdown
+    maxRequestsBeforeShutdown: options.maxRequestsBeforeShutdown,
+    additionalRequestsBeforeShutdown: options.additionalRequestsBeforeShutdown,
   });
 };
