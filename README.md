@@ -368,11 +368,11 @@ The `ENV` environment variable determines which environment will be used. If it 
 
 ## Resource leak mitigation
 
-If you suspect your application is slowly leaking memory, HTTP sockets or some other resource that eventually renders it nonresponsive, you can set the `maxRequestsBeforeShutdown` option. The application will automatically exit after that number of requests.
+If you suspect your application is slowly leaking memory, HTTP sockets or some other resource that eventually renders it nonresponsive, you can set the `maxRequestsBeforeShutdown` option. The application will automatically exit after that number of requests. By default, this mechanism calls `process.exit(0)`. You can change this behavior by passing a custom `exit` function to `apostrophe-multisite` as an option.
 
-Of course this assumes you are using `pm2`, `forever` or another mechanism to restart it when it exits, and that you are also running at least one other process concurrently, so that they can cover for each other during restarts.
+Of course this assumes you are using `pm2`, `forever` or another mechanism to restart the application when it exits, and that you are also running at least one other process concurrently, so that they can cover for each other during restarts.
 
-To avoid problems when all of the processes stop at the same time, for instance due to round robin scheduling that delivers equal numbers of requests to them, a random number of additional requests between 0 and 1000 are accepted per process. This can be adjusted via the `additionalRequestsBeforeShutdown` option; set to 0 for no random factor at all.
+To avoid 502 Bad Gateway errors when all of the processes stop at the same time, for instance due to round robin scheduling that delivers equal numbers of requests to them, a random number of additional requests between 0 and 1000 are accepted per process. This can be adjusted via the `additionalRequestsBeforeShutdown` option; set to 0 for no random factor at all.
 
 ## Project contribution
 
