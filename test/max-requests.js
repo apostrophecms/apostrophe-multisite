@@ -18,6 +18,7 @@ describe('Apostrophe-multisite', function() {
     let sites;
     let site;
     let req;
+    let exited;
 
     const newSite = {
       title,
@@ -42,6 +43,8 @@ describe('Apostrophe-multisite', function() {
           : 'mongodb://localhost:27017';
       const db = await mongo.MongoClient.connect(mongodbUrl);
       const adminDb = db.admin();
+      const maxRequestsBeforeShutdown = 10;
+      const additionalRequestsBeforeShutdown = 5;
       const { databases } = await adminDb.listDatabases();
       for (const db of databases) {
         if (db.name.match('[^,]*' + shortNamePrefix + '*')) {
@@ -51,8 +54,13 @@ describe('Apostrophe-multisite', function() {
         }
       }
 
+      function exit() {
+        // Mock out process.exit for the test
+        exited = true;
+      }
+
       // configure fake app using apostrophe-multisite
-      multisite = await apostropheMultisite({ port, shortNamePrefix, mongodbUrl });
+      multisite = await apostropheMultisite({ maxRequestsBeforeShutdown, additionalRequestsBeforeShutdown, exit, port, shortNamePrefix, mongodbUrl });
       sites = multisite.dashboard.sites;
       site = sites.newInstance();
       req = multisite.dashboard.tasks.getReq();
@@ -90,59 +98,21 @@ describe('Apostrophe-multisite', function() {
       expect(found.slug).to.match(/^new-site/);
     });
 
-    it('connects to the dashboard', async function() {
-      const dashboard = await rp(`http://dashboard.test:${port}`);
-      expect(dashboard).to.have.string('Home');
-      expect(dashboard).to.have.string(`"csrfCookieName":"${shortNamePrefix}dashboard.csrf"`);
-    });
-
-    it('creates an admin user for the dashboard', async function() {
-      const adminGroup = await multisite.dashboard.groups.find(req, { title: admin }).toObject();
-      const adminUser = await multisite.dashboard.users.insert(req, {
-        username: admin,
-        password: admin,
-        title: admin,
-        groupIds: [adminGroup._id]
-      });
-      expect(adminUser).to.have.property('type', 'apostrophe-user');
-
-      const response = await rp({
-        method: 'POST',
-        uri: `http://dashboard.test:${port}/login`,
-        body: {
-          username: admin,
-          password: admin
-        },
-        json: true,
-        simple: false,
-        resolveWithFullResponse: true
-      });
-      expect(response).to.have.property('statusCode', 302);
-    });
-
-    it('connects to the newly created site', async function() {
-      const piece = await sites.insert(req, {
-        ...site,
-        ...newSite,
-        devBaseUrl: 'site2.test',
-        hostnamesArray: [{ hostname: 'site2.test' }]
-      });
-      const siteT = await rp(`http://site2.test:${port}`);
-      expect(siteT).to.have.string('Home');
-      expect(siteT).to.have.string(`"csrfCookieName":"${shortNamePrefix}${piece._id}.csrf"`);
-
-      const response = await rp({
-        method: 'POST',
-        uri: `http://site2.test:${port}/login`,
-        body: {
-          username: admin,
-          password: admin
-        },
-        json: true,
-        simple: false,
-        resolveWithFullResponse: true
-      });
-      expect(response).to.have.property('statusCode', 302);
+    it('should be able to fetch the new site home page between 10 and 15 times before being shut down by maxRequestsBeforeShutdown', async function() {
+      let connected = 0;
+      for (let i = 0; (i < 20); i++) {
+        try {
+          const siteT = await rp(`http://site.test:${port}/`);
+          connected++;
+        } catch (e) {
+          // Some of them should fail
+        }
+        // Give the shutdown mechanism time to work or these could all queue and succeed while
+        // it is still running
+        await Promise.delay(100);
+      }
+      expect(connected).to.be.below(16);
+      expect(connected).to.be.above(9);
     });
   });
 });

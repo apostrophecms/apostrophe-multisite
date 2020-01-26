@@ -22,5 +22,6 @@ module.exports = async function(options = {}) {
     mongodbUrl: options.mongodbUrl || 'mongodb://localhost:27017',
     maxRequestsBeforeShutdown: options.maxRequestsBeforeShutdown,
     additionalRequestsBeforeShutdown: options.additionalRequestsBeforeShutdown,
+    exit: options.exit
   });
 };
