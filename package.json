@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "test": "nyc mocha --timeout=10000 --exit",
+    "test": "eslint . && nyc mocha --timeout=10000 --exit",
     "test:cover": "nyc --reporter=html npm test && open-cli ./coverage/index.html",
     "test:watch": "mocha --timeout=10000 --watch"
   },
