@@ -171,7 +171,7 @@ module.exports = async function(options) {
     // that end politely without exiting the process on their own
     return runTaskOnAllSites({
       withoutForking: argv['without-forking'],
-      concurrency: argv['concurrency'] ? parseInt(argv['concurrency']) : 1
+      concurrency: argv.concurrency ? parseInt(argv.concurrency) : 1
     });
   }
 
@@ -242,7 +242,7 @@ module.exports = async function(options) {
     });
   }
 
-  self.server = server
+  self.server = server;
 
   return self;
 
@@ -262,7 +262,7 @@ module.exports = async function(options) {
 
   function dashboardMiddleware(req, res, next) {
     let site = req.get('Host');
-    const matches = site.match(/^([^\:]+)/);
+    const matches = site.match(/^([^:]+)/);
     if (!matches) {
       return next();
     }
@@ -275,7 +275,7 @@ module.exports = async function(options) {
 
   async function sitesMiddleware(req, res, next) {
     let site = req.get('Host');
-    const matches = (site || '').match(/^([^\:]+)/);
+    const matches = (site || '').match(/^([^:]+)/);
     if (!matches) {
       return next();
     }
@@ -293,7 +293,11 @@ module.exports = async function(options) {
     // direct all traffic for .multi test hostnames through
     // localhost:3000. However, this makes `req.url` an absolute
     // URL, which Apostrophe does not expect. Remove the host
-    req.url = require('url').parse(req.url).path;
+
+    const matches = req.url.match(/^\w+:\/\/[^/]*(\/.*)$/);
+    if (matches) {
+      req.url = matches[1];
+    }
     return next();
   }
 
@@ -324,7 +328,7 @@ module.exports = async function(options) {
     const logLevels = (process.env.LOG_LEVEL || (process.env.VERBOSE ? 'info,debug,warn,error' : defaultLogLevels)).split(/,\s*/);
     if (logLevels.includes(level)) {
       if ((level === 'warn') || (level === 'error')) {
-        if (argv['site']) {
+        if (argv.site) {
           console.error(msg); // eslint-disable-line no-console
         } else {
           // Trim the message because added blank lines do not read well
@@ -332,7 +336,7 @@ module.exports = async function(options) {
           console.error(name + ': ' + msg.trim()); // eslint-disable-line no-console
         }
       } else {
-        if (argv['site']) {
+        if (argv.site) {
           console.log(msg); // eslint-disable-line no-console
         } else {
           // Trim the message because added blank lines do not read well
@@ -848,7 +852,6 @@ module.exports = async function(options) {
     async function runOne(site) {
       log(site, 'info', `running task ${argv._[0]}`);
       const apos = await self.getSiteApos(site, { argv: { _: [] } });
-      const task = apos.tasks.find(argv._[0]);
       await apos.tasks.invoke(argv._[0], argv._.slice(1), argv);
       await Promise.promisify(apos.destroy)();
     }

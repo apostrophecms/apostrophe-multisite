@@ -7,7 +7,7 @@ const apostropheMultisite = require('./app.js');
 const Promise = require('bluebird');
 
 describe('Apostrophe-multisite', function() {
-  describe('#dashboard', function() {
+  describe('maxRequestsBeforeShutdown', function() {
     const port = 3000;
     const admin = 'admin';
     const url = 'site.test';
@@ -102,7 +102,7 @@ describe('Apostrophe-multisite', function() {
       let connected = 0;
       for (let i = 0; (i < 20); i++) {
         try {
-          const siteT = await rp(`http://site.test:${port}/`);
+          await rp(`http://site.test:${port}/`);
           connected++;
         } catch (e) {
           // Some of them should fail
@@ -113,6 +113,7 @@ describe('Apostrophe-multisite', function() {
       }
       expect(connected).to.be.below(16);
       expect(connected).to.be.above(9);
+      expect(exited).to.be.true; // eslint-disable-line no-unused-expressions
     });
   });
 });

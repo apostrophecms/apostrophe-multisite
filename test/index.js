@@ -4,7 +4,6 @@ const { expect } = require('chai');
 const rp = require('request-promise');
 const enableDestroy = require('server-destroy');
 const apostropheMultisite = require('./app.js');
-const Promise = require('bluebird');
 
 describe('Apostrophe-multisite', function() {
   describe('#dashboard', function() {
