@@ -6,6 +6,7 @@ const Promise = require('bluebird');
 const uploadfs = require('uploadfs');
 const mkdirp = require('mkdirp');
 const util = require('util');
+const createHttpTerminator = require('http-terminator').createHttpTerminator;
 
 module.exports = async function(options) {
   const self = {};
@@ -13,6 +14,12 @@ module.exports = async function(options) {
   const aposes = {};
   const aposUpdatedAt = {};
   const multisiteOptions = options;
+  let requests = 0;
+  let additionalRequestsBeforeShutdown;
+  // Allows process.exit to be mocked out for tests
+  const exit = options.exit || function(code) {
+    return process.exit(code);
+  };
 
   // Public API
 
@@ -164,13 +171,13 @@ module.exports = async function(options) {
     // that end politely without exiting the process on their own
     return runTaskOnAllSites({
       withoutForking: argv['without-forking'],
-      concurrency: argv['concurrency'] ? parseInt(argv['concurrency']) : 1
+      concurrency: argv.concurrency ? parseInt(argv.concurrency) : 1
     });
   }
 
   if (argv._[0] === 'tasks') {
     await runScheduledTasksOnAllSites();
-    process.exit(0);
+    exit(0);
   }
 
   if (argv._.length) {
@@ -178,6 +185,14 @@ module.exports = async function(options) {
   }
 
   self.dashboard = await spinUpDashboard();
+
+  if (options.maxRequestsBeforeShutdown) {
+    app.use(maxRequestsBeforeShutdownMiddleware);
+    if (options.additionalRequestsBeforeShutdown === undefined) {
+      options.additionalRequestsBeforeShutdown = 1000;
+    }
+    additionalRequestsBeforeShutdown = Math.round(Math.random() * options.additionalRequestsBeforeShutdown);
+  }
 
   app.use(simpleUrlMiddleware);
 
@@ -227,13 +242,27 @@ module.exports = async function(options) {
     });
   }
 
-  self.server = server
+  self.server = server;
 
   return self;
 
+  function maxRequestsBeforeShutdownMiddleware(req, res, next) {
+    req.on('end', async function() {
+      requests++;
+      if (requests === (options.maxRequestsBeforeShutdown + additionalRequestsBeforeShutdown)) {
+        const httpTerminator = createHttpTerminator({
+          server
+        });
+        await httpTerminator.terminate();
+        exit(0);
+      }
+    });
+    return next();
+  }
+
   function dashboardMiddleware(req, res, next) {
     let site = req.get('Host');
-    const matches = site.match(/^([^\:]+)/);
+    const matches = site.match(/^([^:]+)/);
     if (!matches) {
       return next();
     }
@@ -246,7 +275,7 @@ module.exports = async function(options) {
 
   async function sitesMiddleware(req, res, next) {
     let site = req.get('Host');
-    const matches = (site || '').match(/^([^\:]+)/);
+    const matches = (site || '').match(/^([^:]+)/);
     if (!matches) {
       return next();
     }
@@ -264,7 +293,11 @@ module.exports = async function(options) {
     // direct all traffic for .multi test hostnames through
     // localhost:3000. However, this makes `req.url` an absolute
     // URL, which Apostrophe does not expect. Remove the host
-    req.url = require('url').parse(req.url).path;
+
+    const matches = req.url.match(/^\w+:\/\/[^/]*(\/.*)$/);
+    if (matches) {
+      req.url = matches[1];
+    }
     return next();
   }
 
@@ -295,7 +328,7 @@ module.exports = async function(options) {
     const logLevels = (process.env.LOG_LEVEL || (process.env.VERBOSE ? 'info,debug,warn,error' : defaultLogLevels)).split(/,\s*/);
     if (logLevels.includes(level)) {
       if ((level === 'warn') || (level === 'error')) {
-        if (argv['site']) {
+        if (argv.site) {
           console.error(msg); // eslint-disable-line no-console
         } else {
           // Trim the message because added blank lines do not read well
@@ -303,7 +336,7 @@ module.exports = async function(options) {
           console.error(name + ': ' + msg.trim()); // eslint-disable-line no-console
         }
       } else {
-        if (argv['site']) {
+        if (argv.site) {
           console.log(msg); // eslint-disable-line no-console
         } else {
           // Trim the message because added blank lines do not read well
@@ -814,12 +847,11 @@ module.exports = async function(options) {
       await dashboard.docs.db.remove({ _id: sites[0]._id });
     }
     // Our job to exit since we know the tasks are all complete already
-    process.exit(0);
+    exit(0);
 
     async function runOne(site) {
       log(site, 'info', `running task ${argv._[0]}`);
       const apos = await self.getSiteApos(site, { argv: { _: [] } });
-      const task = apos.tasks.find(argv._[0]);
       await apos.tasks.invoke(argv._[0], argv._.slice(1), argv);
       await Promise.promisify(apos.destroy)();
     }

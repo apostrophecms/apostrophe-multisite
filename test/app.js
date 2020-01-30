@@ -19,6 +19,9 @@ module.exports = async function(options = {}) {
     port: options.port || 3000,
     dashboardHostname: 'dashboard.test',
     shortNamePrefix: options.shortNamePrefix || 'test-multi-',
-    mongodbUrl: options.mongodbUrl || 'mongodb://localhost:27017'
+    mongodbUrl: options.mongodbUrl || 'mongodb://localhost:27017',
+    maxRequestsBeforeShutdown: options.maxRequestsBeforeShutdown,
+    additionalRequestsBeforeShutdown: options.additionalRequestsBeforeShutdown,
+    exit: options.exit
   });
 };
