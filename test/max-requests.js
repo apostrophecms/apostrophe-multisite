@@ -71,17 +71,6 @@ describe('Apostrophe-multisite', function() {
       multisite.server.destroy();
     });
 
-    it('starts the dashboard', async function() {
-      expect(multisite)
-        .to.be.an('object')
-        .that.has.any.keys('getSiteApos', 'dashboard', 'server');
-    });
-
-    it('creates a site', async function() {
-      expect(site).to.be.an('object');
-      expect(site.type).to.equal('site');
-    });
-
     it('inserts a site and can find it', async function() {
       const piece = await sites.insert(req, { ...site, ...newSite });
       expect(piece).to.be.an('object');
