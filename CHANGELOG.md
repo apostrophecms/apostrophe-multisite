@@ -1,5 +1,15 @@
 NOTE: see the STABILITY note in the README.
 
+# 2.6.0
+
+* Bumped dependency on emulate-mongo-2-driver to 1.1.0 or better to reflect the substantial benefits of mongodb+srv URIs and a lack of deprecation warnings. Connects with `useUnifiedTopology: true`.
+
+# 2.5.0
+
+* `maxRequestsBeforeShutdown` option added. This causes the entire process to shut down gracefully after the specified number of requests (10000 is a reasonable choice). This is a good pragmatic technique to address resource leaks. Of course you must have pm2, forever or another mechanism in place to restart the process.
+* eslint compliant
+* eslint now required for test passage
+
 # 2.4.3
 
 * Removed a few very noisy logging calls that were made obvious by 2.4.2, and began invoking trim() on log messages as some of Apostrophe's whitespace-padded messages do not ready well in the presence of a sitename prefix.

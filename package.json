@@ -1,6 +1,6 @@
 {
   "name": "apostrophe-multisite",
-  "version": "2.4.3",
+  "version": "2.6.0",
   "description": "Multisite support for the Apostrophe CMS. Create & manage multiple sites with the same configuration and host them efficiently.",
   "main": "index.js",
   "scripts": {
@@ -35,12 +35,12 @@
   "dependencies": {
     "bluebird": "^3.5.1",
     "boring": "^0.1.0",
-    "emulate-mongo-2-driver": "^1.0.2",
+    "emulate-mongo-2-driver": "^1.1.0",
     "express": "^4.16.3",
-    "http-terminator": "^2.0.0",
+    "http-terminator": "^2.0.2",
     "lodash": "^4.17.5",
     "mkdirp": "^0.5.1",
-    "resolve": "^1.14.1",
+    "resolve": "^1.15.1",
     "shell-quote": "^1.6.1",
     "uploadfs": "^1.13.0"
   },
@@ -48,13 +48,13 @@
     "apostrophe": "^2.101.0"
   },
   "devDependencies": {
-    "apostrophe": "^2.101.0",
+    "apostrophe": "^2.102.2",
     "chai": "^4.2.0",
     "del": "^5.1.0",
-    "eslint": "^6.7.2",
+    "eslint": "^6.8.0",
     "eslint-config-apostrophe": "^3.0.0",
     "eslint-config-standard": "^14.1.0",
-    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-import": "^2.20.1",
     "eslint-plugin-node": "^10.0.0",
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^4.0.1",

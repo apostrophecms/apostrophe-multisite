@@ -128,10 +128,7 @@ module.exports = async function(options) {
 
   // All sites running under this process share a mongodb connection object
   const db = await mongo.MongoClient.connect(options.mongodbUrl, {
-    autoReconnect: true,
-    // retry forever
-    reconnectTries: Number.MAX_VALUE,
-    reconnectInterval: 1000
+    useUnifiedTopology: true
   });
 
   // required on behalf of the application, so it can see the peer dependency
