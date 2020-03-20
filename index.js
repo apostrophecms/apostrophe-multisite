@@ -162,7 +162,7 @@ module.exports = async function(options) {
     return runTaskOnTemporarySite();
   }
 
-  if (argv['all-sites'] || argv['sites']) {
+  if (argv['all-sites'] || argv.sites) {
     // --without-forking option runs the task without a separate child process
     // for each site, avoiding overhead but also compatible only with tasks
     // that end politely without exiting the process on their own
