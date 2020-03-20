@@ -194,6 +194,8 @@ node app apostrophe-migrations:migrate --all-sites --without-forking --concurren
 
 This significantly improves performance. The appropriate level of `concurrency` depends on your task; you may leave this argument off.
 
+> We do fork just a little. To combat memory leaks observed when running under Linux, if there are more than ten sites to run the task for, sub-processes will be forked to process them sequentially in groups of 10 using the `--sites` option. The end result is the same, and `concurrency` still applies within each group.
+
 To run a task on a temporary "hosted" site which will be deleted after the task:
 
 ```

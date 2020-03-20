@@ -162,13 +162,14 @@ module.exports = async function(options) {
     return runTaskOnTemporarySite();
   }
 
-  if (argv['all-sites']) {
+  if (argv['all-sites'] || argv['sites']) {
     // --without-forking option runs the task without a separate child process
     // for each site, avoiding overhead but also compatible only with tasks
     // that end politely without exiting the process on their own
     return runTaskOnAllSites({
       withoutForking: argv['without-forking'],
-      concurrency: argv.concurrency ? parseInt(argv.concurrency) : 1
+      concurrency: argv.concurrency ? parseInt(argv.concurrency) : 1,
+      someSites: argv.sites ? argv.sites.split(/,/) : false
     });
   }
 
@@ -178,7 +179,7 @@ module.exports = async function(options) {
   }
 
   if (argv._.length) {
-    throw new Error('To run a command line task you must specify --all-sites, --temporary-site, or --site=hostname-or-id. To run a task for the dashboard site specify --site=dashboard');
+    throw new Error('To run a command line task you must specify --all-sites, --sites=name1,name2,name3, --temporary-site, or --site=hostname-or-id. To run a task for the dashboard site specify --site=dashboard');
   }
 
   self.dashboard = await spinUpDashboard();
@@ -824,11 +825,41 @@ module.exports = async function(options) {
       }
       await dashboard.sites.insert(req, site);
       sites = [site];
+    } else if (options.someSites) {
+      const identifiers = options.someSites;
+      sites = await dashboard.sites.find(req, {
+        $or: [
+          {
+            hostnames: {
+              $in: identifiers
+            }
+          },
+          {
+            _id: {
+              $in: identifiers
+            }
+          }
+        ]
+      }).toArray();
     } else {
       sites = await dashboard.sites.find(req, {}).toArray();
     }
     if (options.withoutForking) {
-      await Promise.map(sites, runOne, { concurrency: options.concurrency || 1 });
+      if (sites.length > 10) {
+        // fork anyway but run in groups of 10
+        // Avoid running out of memory in Linux, node does not seem to return
+        // the resources promptly enough
+        const spawn = require('child_process').spawnSync;
+        for (let i = 0; (i < sites.length); i += 10) {
+          const ids = sites.slice(i, i + 10).map(site => site._id);
+          const result = spawn(process.argv[0], process.argv.slice(1).concat(['--sites=' + ids.join(',')]), { encoding: 'utf8', stdio: 'inherit' });
+          if (result.status !== 0) {
+            throw new Error(result.status || ('exited on signal ' + result.signal));
+          }
+        }
+      } else {
+        await Promise.map(sites, runOne, { concurrency: options.concurrency || 1 });
+      }
     } else {
       const spawn = require('child_process').spawnSync;
       sites.forEach(site => {
