@@ -1,5 +1,11 @@
 NOTE: see the STABILITY note in the README.
 
+# 2.6.1
+
+* In order to work around memory leaks observed in some environments during `apostrophe-migrations:migrate` runs with the `--without-forking` option, if there are more than ten sites groups of ten sites at a time are run this way in a subprocess. This allows some benefit from process reuse without hitting memory limits.
+* The `listDatabases` mongodb command is now called with `nameOnly: true` to greatly improve the speed with which it returns.
+* All tests pass again.
+
 # 2.6.0
 
 * Bumped dependency on emulate-mongo-2-driver to 1.1.0 or better to reflect the substantial benefits of mongodb+srv URIs and a lack of deprecation warnings. Connects with `useUnifiedTopology: true`.
