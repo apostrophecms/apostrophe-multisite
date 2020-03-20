@@ -7,6 +7,7 @@ const apostropheMultisite = require('./app.js');
 
 describe('Apostrophe-multisite', function() {
   describe('#dashboard', function() {
+    this.timeout(20000);
     const port = 3000;
     const admin = 'admin';
     const url = 'site.test';
@@ -41,7 +42,7 @@ describe('Apostrophe-multisite', function() {
           : 'mongodb://localhost:27017';
       const db = await mongo.MongoClient.connect(mongodbUrl);
       const adminDb = db.admin();
-      const { databases } = await adminDb.listDatabases();
+      const { databases } = await adminDb.listDatabases({ nameOnly: true });
       for (const db of databases) {
         if (db.name.match('[^,]*' + shortNamePrefix + '*')) {
           const client = await mongo.MongoClient.connect(mongodbUrl + '/' + db.name);

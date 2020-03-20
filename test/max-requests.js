@@ -8,6 +8,7 @@ const Promise = require('bluebird');
 
 describe('Apostrophe-multisite', function() {
   describe('maxRequestsBeforeShutdown', function() {
+    this.timeout(20000);
     const port = 3000;
     const admin = 'admin';
     const url = 'site.test';
@@ -45,7 +46,7 @@ describe('Apostrophe-multisite', function() {
       const adminDb = db.admin();
       const maxRequestsBeforeShutdown = 10;
       const additionalRequestsBeforeShutdown = 5;
-      const { databases } = await adminDb.listDatabases();
+      const { databases } = await adminDb.listDatabases({ nameOnly: true });
       for (const db of databases) {
         if (db.name.match('[^,]*' + shortNamePrefix + '*')) {
           const client = await mongo.MongoClient.connect(mongodbUrl + '/' + db.name);
@@ -53,6 +54,7 @@ describe('Apostrophe-multisite', function() {
           console.log('\x1b[36m%s\x1b[0m', `Test db ${db.name} dropped`);
         }
       }
+      console.log('** done dropping');
 
       function exit() {
         // Mock out process.exit for the test
@@ -60,7 +62,9 @@ describe('Apostrophe-multisite', function() {
       }
 
       // configure fake app using apostrophe-multisite
+      console.log('** starting multisite');
       multisite = await apostropheMultisite({ maxRequestsBeforeShutdown, additionalRequestsBeforeShutdown, exit, port, shortNamePrefix, mongodbUrl });
+      console.log('** multisite up');
       sites = multisite.dashboard.sites;
       site = sites.newInstance();
       req = multisite.dashboard.tasks.getReq();

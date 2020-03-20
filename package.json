@@ -6,9 +6,9 @@
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "test": "eslint . && nyc mocha --timeout=10000 --exit",
+    "test": "eslint . && nyc mocha --timeout=20000 --exit",
     "test:cover": "nyc --reporter=html npm test && open-cli ./coverage/index.html",
-    "test:watch": "mocha --timeout=10000 --watch"
+    "test:watch": "mocha --timeout=20000 --watch"
   },
   "engines": {
     "node": ">=8.0.0"
