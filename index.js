@@ -851,6 +851,12 @@ module.exports = async function(options) {
       const apos = await self.getSiteApos(site, { argv: { _: [] } });
       await apos.tasks.invoke(argv._[0], argv._.slice(1), argv);
       await Promise.promisify(apos.destroy)();
+      if (global.gc) {
+        // If possible reclaim RAM associated with this job sooner rather
+        // than later. We have observed problems in Linux without it. Only
+        // available if the --expose-gc flag was given on the command line
+        global.gc();
+      }
     }
   }
 
