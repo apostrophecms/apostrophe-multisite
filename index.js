@@ -855,6 +855,7 @@ module.exports = async function(options) {
         // If possible reclaim RAM associated with this job sooner rather
         // than later. We have observed problems in Linux without it. Only
         // available if the --expose-gc flag was given on the command line
+        console.log('** gc');
         global.gc();
       }
     }
