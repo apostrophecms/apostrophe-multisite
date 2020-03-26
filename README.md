@@ -206,6 +206,13 @@ To run a task on a temporary "hosted" site which will be deleted after the task:
 node app apostrophe:generation --temporary-site
 ```
 
+If the site objects in your dashboard have a `theme` schema field (typically of type `select`), then you may generate assets for each theme:
+
+```
+node app apostrophe:generation --temporary-site --theme=theme-one
+node app apostrophe:generation --temporary-site --theme=theme-two
+```
+
 > `--temporary-site` is good for generating assets that are shared between the hosted sites, but not the dashboard. Note that `--temporary-site` and `--all-sites` do not work for interactive tasks that prompt for information, like `apostrophe-users:change-password`, or otherwise read from standard input. Currently these options print all output at the end.
 
 ## Running scheduled tasks just once across a cluster
@@ -281,7 +288,9 @@ In addition, any time a `site` piece is saved in the dashboard, all existing `ap
 
 This can be used to achieve effects such as passing a new list of locales to `apostrophe-workflow` based on user input in the dashboard.
 
-Note that this means the `site` object should not be updated frequently or for trivial reasons via Apostrophe’s `update` method — only when significant configuration changes occur. However, note that it is never a good idea in any case to implement a hit counter via Apostrophe’s model layer methods. As always, use a direct MongoDB `update` with `$inc` for such purposes.
+Note that this means the `site` object should not be updated frequently or for trivial reasons via Apostrophe’s `update` method — only when significant configuration changes occur. However, it is never a good idea in any case to implement a hit counter via Apostrophe’s model layer methods. As always, use a direct MongoDB `update` with `$inc` for such purposes.
+
+There is one limitation: **the sites function must always result in the same set of assets being pushed by the modules, except if the decision is made based on a `theme` property of each site object.** If you add a `theme` field to the `sites` pieces module in the dashboard, you may use logic based on `site.theme` in the sites function to decide which modules will be included in the project, even if this changes the assets.
 
 ## Using AWS (or Azure, etc.)
 
