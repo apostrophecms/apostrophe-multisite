@@ -1,3 +1,7 @@
+# 2.6.3
+
+* More documentation revisions.
+
 # 2.6.2
 
 * Updated README to reflect the production stability of the module.
