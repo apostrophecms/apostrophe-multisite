@@ -2,15 +2,19 @@
 
 [![CircleCI](https://circleci.com/gh/apostrophecms/apostrophe-multisite.svg?style=svg)](https://circleci.com/gh/apostrophecms/apostrophe-multisite)
 
-## A work in progress
+## What's it do?
 
-Despite the version number we have NOT officially declared this module stableyet. Those using it in production are strongly advised to join our [Apostrophe Enterprise Support program](https://apostrophecms.org/support/enterprise-support). Note: you **do not** need this module in most Apostrophe projects. It is designed to support projects that require many independently edited sites with the same source code and configuration.
+This module lets you have many ApostropheCMS websites running on a single codebase in a single Node.js process. Each has its own database, users, media uploads, etc. Sites can be created and managed via a dashboard site.
 
-## Requirements (Node 8 is REQUIRED)
+Those using this module are [strongly advised to join our Apostrophe Enterprise Support program](https://apostrophecms.org/support/enterprise-support). We can work with you to make sure your customers receive the high availability and durability this module is designed to provide.
 
-This module requires Node 8. Your project must also have `apostrophe` as an npm dependency.
+Note: you **do not** need this module in most Apostrophe projects. It is designed to support projects that require many independently edited sites with the same source code and configuration.
 
-Hint: use `nvm` if you aren't ready to change to node 8 in your dev environment.
+## Requirements (Node 10 or better)
+
+You must have a currently supported release of Node.js, which would be 10.x or better as of this writing.
+
+Your project must also have `apostrophe` as an npm dependency.
 
 ## Sample `app.js`
 

@@ -1,4 +1,6 @@
-NOTE: see the STABILITY note in the README.
+# 2.6.2
+
+* Updated README to reflect the production stability of the module.
 
 # 2.6.1
 
