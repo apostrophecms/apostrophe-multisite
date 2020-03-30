@@ -852,7 +852,10 @@ module.exports = async function(options) {
         const spawn = require('child_process').spawnSync;
         for (let i = 0; (i < sites.length); i += 10) {
           const ids = sites.slice(i, i + 10).map(site => site._id);
-          const result = spawn(process.argv[0], process.argv.slice(1).concat(['--sites=' + ids.join(',')]), { encoding: 'utf8', stdio: 'inherit' });
+          const result = spawn(process.argv[0], process.argv.slice(1).concat(['--sites=' + ids.join(',')]), {
+            encoding: 'utf8',
+            stdio: 'inherit'
+          });
           if (result.status !== 0) {
             throw new Error(result.status || ('exited on signal ' + result.signal));
           }
@@ -864,7 +867,10 @@ module.exports = async function(options) {
       const spawn = require('child_process').spawnSync;
       sites.forEach(site => {
         log(site, 'info', `running task ${argv._[0]}`);
-        const result = spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), { encoding: 'utf8', stdio: 'inherit' });
+        const result = spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), {
+          encoding: 'utf8',
+          stdio: 'inherit'
+        });
         if (result.status !== 0) {
           throw new Error(result.status || ('exited on signal ' + result.signal));
         }
@@ -933,7 +939,10 @@ module.exports = async function(options) {
         const args = process.argv.slice(1);
         args[args.findIndex(arg => arg === 'tasks')] = task;
         args.push('--site=' + site._id);
-        await util.promisify(spawn)(process.argv[0], args, { encoding: 'utf8', stdio: 'inherit' });
+        await util.promisify(spawn)(process.argv[0], args, {
+          encoding: 'utf8',
+          stdio: 'inherit'
+        });
       }
     } finally {
       if (locked) {
@@ -994,7 +1003,10 @@ module.exports = async function(options) {
       const args = process.argv.slice(1);
       args[args.findIndex(arg => arg === 'tasks')] = task;
       args.push('--site=dashboard');
-      await util.promisify(spawn)(process.argv[0], args, { encoding: 'utf8', stdio: 'inherit' });
+      await util.promisify(spawn)(process.argv[0], args, {
+        encoding: 'utf8',
+        stdio: 'inherit'
+      });
     } finally {
       if (locked) {
         await dashboard.locks.unlock(`dashboard-${task}`);
