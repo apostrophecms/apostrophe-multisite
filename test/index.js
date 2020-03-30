@@ -52,7 +52,11 @@ describe('Apostrophe-multisite', function() {
       }
 
       // configure fake app using apostrophe-multisite
-      multisite = await apostropheMultisite({ port, shortNamePrefix, mongodbUrl });
+      multisite = await apostropheMultisite({
+        port,
+        shortNamePrefix,
+        mongodbUrl
+      });
       sites = multisite.dashboard.sites;
       site = sites.newInstance();
       req = multisite.dashboard.tasks.getReq();
@@ -75,7 +79,10 @@ describe('Apostrophe-multisite', function() {
     });
 
     it('inserts a site and can find it', async function() {
-      const piece = await sites.insert(req, { ...site, ...newSite });
+      const piece = await sites.insert(req, {
+        ...site,
+        ...newSite
+      });
       expect(piece).to.be.an('object');
       expect(piece).to.have.property('published', true);
       expect(piece).to.have.property('title', title);
