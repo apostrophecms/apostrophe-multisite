@@ -361,10 +361,7 @@ module.exports = async function(options) {
     } else {
       siteOptions = options.sites || {};
     }
-    siteOptions = {
-      ...siteOptions,
-      ..._options
-    };
+    siteOptions = _.merge({}, siteOptions, _options);
 
     return runner(siteOptions);
 
@@ -470,6 +467,14 @@ module.exports = async function(options) {
 
             'apostrophe-multisite-patch-assets': {
               construct: function(self, options) {
+
+                if (self.apos.assets.options.disabled) {
+                  self.apos.assets.afterInit = function(callback) {
+                    return setImmediate(callback);
+                  };
+                  self.apos.assets.determineGenerationAndExtract = function() {};
+                }
+
                 // The sites should share a collection for this purpose,
                 // so they don't fail to see that a bundle has already been
                 // generated via a temporary site during deployment
@@ -885,7 +890,18 @@ module.exports = async function(options) {
 
     async function runOne(site) {
       log(site, 'info', `running task ${argv._[0]}`);
-      const apos = await self.getSiteApos(site, { argv: { _: [] } });
+      const apos = await self.getSiteApos(site, {
+        argv: {
+          _: []
+        },
+        modules: {
+          ...((argv._[0] === 'apostrophe:generation') ? {} : {
+            'apostrophe-assets': {
+              disabled: true
+            }
+          })
+        }
+      });
       await apos.tasks.invoke(argv._[0], argv._.slice(1), argv);
       await Promise.promisify(apos.destroy)();
     }
