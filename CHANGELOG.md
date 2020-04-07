@@ -1,3 +1,7 @@
+# 2.6.4
+
+* Command line tasks should not generate assets, unless the task being run is the actual `apostrophe:generation` task. The `--without-forking` option often used together with `--all-sites` now respects this rule for much faster execution of tasks like `apostrophe-migrations:migrate` across all sites. Note that to avoid wasted time and resources `apostrophe:generation` is typically run just once, for a temporary site, or once per theme.
+
 # 2.6.3
 
 * More documentation revisions.
