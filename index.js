@@ -283,6 +283,13 @@ module.exports = async function(options) {
     if (!site) {
       return options.orphan(req, res);
     }
+    if (site.redirect) {
+      if (site.redirectPreservePath) {
+        return res.redirect(parseInt(site.redirectStatus), site.redirectUrl + req.url);
+      } else {
+        return res.redirect(parseInt(site.redirectStatus), site.redirectUrl);
+      }
+    }
     (await self.getSiteApos(site)).app(req, res);
   }
 
