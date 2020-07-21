@@ -1,3 +1,7 @@
+# 2.8.0
+
+* Support for canonicalization of the domain name. Once a site's DNS has been set up for the production hostname and HTTPS is in place, etc., a dashboard admin can select this option to redirect all traffic from the "work in progress" domain to the final production one. This helps prevent confusion after login when links on the site take you to a logged-out view on a different domain. Only available when the `baseUrlDomains` option is set.
+
 # 2.7.0
 
 * Support for sitewide redirects. This is handy when retiring a site, or taking responsibility for redirecting additional domains (you can them as sites and immediately set up redirects).
