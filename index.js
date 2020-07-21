@@ -272,14 +272,14 @@ module.exports = async function(options) {
   }
 
   async function sitesMiddleware(req, res, next) {
-    let site = req.get('Host');
-    const matches = (site || '').match(/^([^:]+)/);
+    const host = req.get('Host');
+    const matches = (host || '').match(/^([^:]+)/);
     if (!matches) {
       return next();
     }
-    site = matches[1].toLowerCase();
+    const hostname = matches[1].toLowerCase();
 
-    site = await getLiveSiteByHostname(site);
+    const site = await getLiveSiteByHostname(hostname);
     if (!site) {
       return options.orphan(req, res);
     }
@@ -288,6 +288,11 @@ module.exports = async function(options) {
         return res.redirect(parseInt(site.redirectStatus), site.redirectUrl + req.url);
       } else {
         return res.redirect(parseInt(site.redirectStatus), site.redirectUrl);
+      }
+    }
+    if (site.canonicalize && site.prodHostname) {
+      if (hostname !== site.prodHostname.toLowerCase()) {
+        return res.redirect(parseInt(site.canonicalizeStatus), `${req.protocol}://${site.prodHostname}${req.url}`);
       }
     }
     (await self.getSiteApos(site)).app(req, res);
