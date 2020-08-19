@@ -1,3 +1,7 @@
+# 2.8.1
+
+* Canonicalization of the domain name now occurs only when the `ENV` environment variable is set to `prod`. This prevents confusing directs in dev and staging environments when the dashboard database has been copied down from prod.
+
 # 2.8.0
 
 * Support for canonicalization of the domain name. Once a site's DNS has been set up for the production hostname and HTTPS is in place, etc., a dashboard admin can select this option to redirect all traffic from the "work in progress" domain to the final production one. This helps prevent confusion after login when links on the site take you to a logged-out view on a different domain. Only available when the `baseUrlDomains` option is set.

@@ -290,7 +290,7 @@ module.exports = async function(options) {
         return res.redirect(parseInt(site.redirectStatus), site.redirectUrl);
       }
     }
-    if (site.canonicalize && site.prodHostname) {
+    if ((options.env === 'prod') && site.canonicalize && site.prodHostname) {
       if (hostname !== site.prodHostname.toLowerCase()) {
         return res.redirect(parseInt(site.canonicalizeStatus), `${req.protocol}://${site.prodHostname}${req.url}`);
       }
