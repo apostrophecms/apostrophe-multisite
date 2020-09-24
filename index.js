@@ -272,30 +272,37 @@ module.exports = async function(options) {
   }
 
   async function sitesMiddleware(req, res, next) {
-    const host = req.get('Host');
-    const matches = (host || '').match(/^([^:]+)/);
-    if (!matches) {
-      return next();
-    }
-    const hostname = matches[1].toLowerCase();
-
-    const site = await getLiveSiteByHostname(hostname);
-    if (!site) {
-      return options.orphan(req, res);
-    }
-    if (site.redirect) {
-      if (site.redirectPreservePath) {
-        return res.redirect(parseInt(site.redirectStatus), site.redirectUrl + req.url);
-      } else {
-        return res.redirect(parseInt(site.redirectStatus), site.redirectUrl);
+    let hostname;
+    let site;
+    try {
+      const host = req.get('Host');
+      const matches = (host || '').match(/^([^:]+)/);
+      if (!matches) {
+        return next();
       }
-    }
-    if ((options.env === 'prod') && site.canonicalize && site.prodHostname) {
-      if (hostname !== site.prodHostname.toLowerCase()) {
-        return res.redirect(parseInt(site.canonicalizeStatus), `${req.protocol}://${site.prodHostname}${req.url}`);
+      hostname = matches[1].toLowerCase();
+      site = await getLiveSiteByHostname(hostname);
+      if (!site) {
+        return options.orphan(req, res);
       }
+      if (site.redirect) {
+        if (site.redirectPreservePath) {
+          return res.redirect(parseInt(site.redirectStatus), site.redirectUrl + req.url);
+        } else {
+          return res.redirect(parseInt(site.redirectStatus), site.redirectUrl);
+        }
+      }
+      if ((options.env === 'prod') && site.canonicalize && site.prodHostname) {
+        if (hostname !== site.prodHostname.toLowerCase()) {
+          return res.redirect(parseInt(site.canonicalizeStatus), `${req.protocol}://${site.prodHostname}${req.url}`);
+        }
+      }
+      (await self.getSiteApos(site)).app(req, res);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(`Error in sitesMiddleware for ${req.url}, hostname: ${hostname}, found: ${!!site}, error:`, e);
+      return res.status(500).send('error');
     }
-    (await self.getSiteApos(site)).app(req, res);
   }
 
   function simpleUrlMiddleware(req, res, next) {
