@@ -2,8 +2,10 @@ const del = require('del');
 const mongo = require('emulate-mongo-2-driver');
 const { expect } = require('chai');
 const rp = require('request-promise');
-const enableDestroy = require('server-destroy');
 const apostropheMultisite = require('./app.js');
+// Can be brought back if we have exit problems again that
+// need tracing
+// const running = require('why-is-node-running');
 
 describe('Apostrophe-multisite', function() {
   describe('#dashboard', function() {
@@ -47,10 +49,11 @@ describe('Apostrophe-multisite', function() {
         if (db.name.match('[^,]*' + shortNamePrefix + '*')) {
           const client = await mongo.MongoClient.connect(mongodbUrl + '/' + db.name);
           await client.dropDatabase();
+          await client.close();
           console.log('\x1b[36m%s\x1b[0m', `Test db ${db.name} dropped`);
         }
       }
-
+      await db.close();
       // configure fake app using apostrophe-multisite
       multisite = await apostropheMultisite({
         port,
@@ -63,8 +66,7 @@ describe('Apostrophe-multisite', function() {
     });
 
     after(() => {
-      enableDestroy(multisite.server);
-      multisite.server.destroy();
+      return multisite.destroy();
     });
 
     it('starts the dashboard', async function() {
@@ -151,5 +153,11 @@ describe('Apostrophe-multisite', function() {
       });
       expect(response).to.have.property('statusCode', 302);
     });
+
+    // it('set up why-is-node-running', function() {
+    //   setTimeout(function () {
+    //     running(); // logs out active handles that are keeping node running
+    //   }, 60000);
+    // });
   });
 });
