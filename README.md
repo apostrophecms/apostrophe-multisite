@@ -206,6 +206,8 @@ To run a task on a temporary "hosted" site which will be deleted after the task:
 node app apostrophe:generation --temporary-site
 ```
 
+> `--temporary-site` is good for generating assets that are shared between the hosted sites, but not the dashboard. Note that `--temporary-site` and `--all-sites` do not work for interactive tasks that prompt for information, like `apostrophe-users:change-password`, or otherwise read from standard input. Currently these options print all output at the end.
+
 If the site objects in your dashboard have a `theme` schema field (typically of type `select`), then you may generate assets for each theme:
 
 ```
@@ -213,7 +215,7 @@ node app apostrophe:generation --temporary-site --theme=theme-one
 node app apostrophe:generation --temporary-site --theme=theme-two
 ```
 
-> `--temporary-site` is good for generating assets that are shared between the hosted sites, but not the dashboard. Note that `--temporary-site` and `--all-sites` do not work for interactive tasks that prompt for information, like `apostrophe-users:change-password`, or otherwise read from standard input. Currently these options print all output at the end.
+> For a complete solution to generate per-theme assets you will also need to override the `getThemeName` method of `apostrophe-assets` [as shown here](https://github.com/apostrophecms/apostrophe-multisite/tree/document-theme-assets#separate-frontend-assets-for-separate-themes).
 
 ## Running scheduled tasks just once across a cluster
 
