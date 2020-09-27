@@ -290,7 +290,31 @@ This can be used to achieve effects such as passing a new list of locales to `ap
 
 Note that this means the `site` object should not be updated frequently or for trivial reasons via Apostrophe’s `update` method — only when significant configuration changes occur. However, it is never a good idea in any case to implement a hit counter via Apostrophe’s model layer methods. As always, use a direct MongoDB `update` with `$inc` for such purposes.
 
-There is one limitation: **the sites function must always result in the same set of assets being pushed by the modules, except if the decision is made based on a `theme` property of each site object.** If you add a `theme` field to the `sites` pieces module in the dashboard, you may use logic based on `site.theme` in the sites function to decide which modules will be included in the project, even if this changes the assets.
+## Separate frontend assets for separate themes
+
+There is one limitation to per-site configuration: **the sites function must always result in the same set of assets being pushed by the modules, except if the decision is made based on a `theme` property of each site object.** If you add a `theme` field to the `sites` pieces module in the dashboard, you may use logic based on `site.theme` in the sites function to decide which modules will be included in the project, even if this changes the assets.
+
+In addition, **to produce a different asset bundle for each theme, you must override the `getThemeName` method of the `apostrophe-assets` module for your sites.** This function must return the theme name associated with your site.
+
+Here is a working example.
+
+```javascript
+sites(site) => {
+  return {
+    modules: {
+      'apostrophe-assets': {
+        construct(self, options) => {
+          self.getThemeName = () => {
+            return site.theme;
+          };
+        }
+      }
+    }
+  };
+}
+```
+
+> You could put this override in `sites/lib/modules/apostrophe-assets/index.js`, but it is convenient to do it here because we can easily access `site.theme` here.
 
 ## Using AWS (or Azure, etc.)
 
