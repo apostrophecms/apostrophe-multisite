@@ -301,22 +301,29 @@ In addition, **to produce a different asset bundle for each theme, you must over
 Here is a working example.
 
 ```javascript
+// in app.js
 sites(site) => {
   return {
+    // Pass the theme name in as a global option to the apos object. If you
+    // add support for themes later in your project, make sure you provide
+    // a default theme name for old sites
+    theme: site.theme || 'default'
     modules: {
-      'apostrophe-assets': {
-        construct(self, options) => {
-          self.getThemeName = () => {
-            return site.theme;
-          };
-        }
-      }
+      // Other configuration here. Include various modules, or not,
+      // based on `site.theme`
     }
   };
 }
-```
 
-> You could put this override in `sites/lib/modules/apostrophe-assets/index.js`, but it is convenient to do it here because we can easily access `site.theme` here.
+// in sites/lib/modules/apostrophe-assets/index.js
+module.exports = {
+  construct(self, options) {
+    self.getThemeName = () => {
+      return self.apos.options.theme;
+    };
+  }
+};
+```
 
 ## Using AWS (or Azure, etc.)
 
