@@ -307,7 +307,7 @@ sites(site) => {
     // Pass the theme name in as a global option to the apos object. If you
     // add support for themes later in your project, make sure you provide
     // a default theme name for old sites
-    theme: site.theme || 'default'
+    theme: site.theme || 'default',
     modules: {
       // Other configuration here. Include various modules, or not,
       // based on `site.theme`
