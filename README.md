@@ -206,6 +206,8 @@ To run a task on a temporary "hosted" site which will be deleted after the task:
 node app apostrophe:generation --temporary-site
 ```
 
+> `--temporary-site` is good for generating assets that are shared between the hosted sites, but not the dashboard. Note that `--temporary-site` and `--all-sites` do not work for interactive tasks that prompt for information, like `apostrophe-users:change-password`, or otherwise read from standard input. Currently these options print all output at the end.
+
 If the site objects in your dashboard have a `theme` schema field (typically of type `select`), then you may generate assets for each theme:
 
 ```
@@ -213,7 +215,7 @@ node app apostrophe:generation --temporary-site --theme=theme-one
 node app apostrophe:generation --temporary-site --theme=theme-two
 ```
 
-> `--temporary-site` is good for generating assets that are shared between the hosted sites, but not the dashboard. Note that `--temporary-site` and `--all-sites` do not work for interactive tasks that prompt for information, like `apostrophe-users:change-password`, or otherwise read from standard input. Currently these options print all output at the end.
+> For a complete solution to generate per-theme assets you will also need to override the `getThemeName` method of `apostrophe-assets` [as shown here](https://github.com/apostrophecms/apostrophe-multisite/tree/document-theme-assets#separate-frontend-assets-for-separate-themes).
 
 ## Running scheduled tasks just once across a cluster
 
@@ -290,7 +292,38 @@ This can be used to achieve effects such as passing a new list of locales to `ap
 
 Note that this means the `site` object should not be updated frequently or for trivial reasons via Apostrophe’s `update` method — only when significant configuration changes occur. However, it is never a good idea in any case to implement a hit counter via Apostrophe’s model layer methods. As always, use a direct MongoDB `update` with `$inc` for such purposes.
 
-There is one limitation: **the sites function must always result in the same set of assets being pushed by the modules, except if the decision is made based on a `theme` property of each site object.** If you add a `theme` field to the `sites` pieces module in the dashboard, you may use logic based on `site.theme` in the sites function to decide which modules will be included in the project, even if this changes the assets.
+## Separate frontend assets for separate themes
+
+There is one limitation to per-site configuration: **the sites function must always result in the same set of assets being pushed by the modules, except if the decision is made based on a `theme` property of each site object.** If you add a `theme` field to the `sites` pieces module in the dashboard, you may use logic based on `site.theme` in the sites function to decide which modules will be included in the project, even if this changes the assets.
+
+In addition, **to produce a different asset bundle for each theme, you must override the `getThemeName` method of the `apostrophe-assets` module for your sites.** This function must return the theme name associated with your site.
+
+Here is a working example.
+
+```javascript
+// in app.js
+sites(site) => {
+  return {
+    // Pass the theme name in as a global option to the apos object. If you
+    // add support for themes later in your project, make sure you provide
+    // a default theme name for old sites
+    theme: site.theme || 'default',
+    modules: {
+      // Other configuration here. Include various modules, or not,
+      // based on `site.theme`
+    }
+  };
+}
+
+// in sites/lib/modules/apostrophe-assets/index.js
+module.exports = {
+  construct(self, options) {
+    self.getThemeName = () => {
+      return self.apos.options.theme;
+    };
+  }
+};
+```
 
 ## Using AWS (or Azure, etc.)
 
