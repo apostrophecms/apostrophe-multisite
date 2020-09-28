@@ -2,7 +2,6 @@ const del = require('del');
 const mongo = require('emulate-mongo-2-driver');
 const { expect } = require('chai');
 const rp = require('request-promise');
-const enableDestroy = require('server-destroy');
 const apostropheMultisite = require('./app.js');
 const Promise = require('bluebird');
 
@@ -51,10 +50,11 @@ describe('Apostrophe-multisite', function() {
         if (db.name.match('[^,]*' + shortNamePrefix + '*')) {
           const client = await mongo.MongoClient.connect(mongodbUrl + '/' + db.name);
           await client.dropDatabase();
+          await client.close();
           console.log('\x1b[36m%s\x1b[0m', `Test db ${db.name} dropped`);
         }
       }
-      console.log('** done dropping');
+      await db.close();
 
       function exit() {
         // Mock out process.exit for the test
@@ -78,8 +78,7 @@ describe('Apostrophe-multisite', function() {
     });
 
     after(() => {
-      enableDestroy(multisite.server);
-      multisite.server.destroy();
+      return multisite.destroy();
     });
 
     it('inserts a site and can find it', async function() {

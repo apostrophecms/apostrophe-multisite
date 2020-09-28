@@ -1,3 +1,8 @@
+# 2.9.0
+
+* `destroy` method for the multisite object shuts down everything. Used for clean termination of mocha tests and verification that `apos.destroy` does its job too.
+* Properly catch and report errors when initializing a site's `apos` object.
+
 # 2.8.1
 
 * Canonicalization of the domain name now occurs only when the `ENV` environment variable is set to `prod`. This prevents confusing directs in dev and staging environments when the dashboard database has been copied down from prod.

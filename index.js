@@ -7,6 +7,7 @@ const uploadfs = require('uploadfs');
 const mkdirp = require('mkdirp');
 const util = require('util');
 const createHttpTerminator = require('http-terminator').createHttpTerminator;
+const enableDestroy = require('server-destroy');
 
 module.exports = async function(options) {
   const self = {};
@@ -70,12 +71,31 @@ module.exports = async function(options) {
             aposUpdatedAt[site._id] = site.updatedAt;
             aposes[site._id] = apos;
             return callback(null, aposes[site._id]);
+          }).catch(function(e) {
+            delete aposes[site._id];
+            return callback(e);
           });
         }
         return callback(null, aposes[site._id]);
       }
       attempt();
     }
+  };
+
+  self.destroy = async function() {
+    enableDestroy(self.server);
+    self.server.destroy();
+    for (const [key, apos] of Object.entries(aposes)) {
+      if ((typeof apos) === 'object') {
+        await Promise.promisify(apos.destroy)();
+        delete aposes[key];
+      }
+    }
+    await Promise.promisify(dashboard.destroy)();
+    if (self.janitorInterval) {
+      clearInterval(self.janitorInterval);
+    }
+    await db.close();
   };
 
   // Implementation
@@ -272,30 +292,38 @@ module.exports = async function(options) {
   }
 
   async function sitesMiddleware(req, res, next) {
-    const host = req.get('Host');
-    const matches = (host || '').match(/^([^:]+)/);
-    if (!matches) {
-      return next();
-    }
-    const hostname = matches[1].toLowerCase();
-
-    const site = await getLiveSiteByHostname(hostname);
-    if (!site) {
-      return options.orphan(req, res);
-    }
-    if (site.redirect) {
-      if (site.redirectPreservePath) {
-        return res.redirect(parseInt(site.redirectStatus), site.redirectUrl + req.url);
-      } else {
-        return res.redirect(parseInt(site.redirectStatus), site.redirectUrl);
+    let hostname;
+    let site;
+    try {
+      const host = req.get('Host');
+      const matches = (host || '').match(/^([^:]+)/);
+      if (!matches) {
+        return next();
       }
-    }
-    if ((options.env === 'prod') && site.canonicalize && site.prodHostname) {
-      if (hostname !== site.prodHostname.toLowerCase()) {
-        return res.redirect(parseInt(site.canonicalizeStatus), `${req.protocol}://${site.prodHostname}${req.url}`);
+      hostname = matches[1].toLowerCase();
+      site = await getLiveSiteByHostname(hostname);
+      if (!site) {
+        return options.orphan(req, res);
       }
+      if (site.redirect) {
+        if (site.redirectPreservePath) {
+          return res.redirect(parseInt(site.redirectStatus), site.redirectUrl + req.url);
+        } else {
+          return res.redirect(parseInt(site.redirectStatus), site.redirectUrl);
+        }
+      }
+      if ((options.env === 'prod') && site.canonicalize && site.prodHostname) {
+        if (hostname !== site.prodHostname.toLowerCase()) {
+          return res.redirect(parseInt(site.canonicalizeStatus), `${req.protocol}://${site.prodHostname}${req.url}`);
+        }
+      }
+      const apos = await self.getSiteApos(site);
+      apos.app(req, res);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(`Error in sitesMiddleware for ${req.url}, hostname: ${hostname}, found: ${!!site}, error:`, e);
+      return res.status(500).send('error');
     }
-    (await self.getSiteApos(site)).app(req, res);
   }
 
   function simpleUrlMiddleware(req, res, next) {
@@ -409,6 +437,12 @@ module.exports = async function(options) {
           npmRootDir: getRootDir(),
 
           shortName: options.shortNamePrefix + site._id,
+
+          initFailed: function(err) {
+            return apos.destroy(function(_err) {
+              return callback(_err || err);
+            });
+          },
 
           modules: {
 
@@ -555,6 +589,10 @@ module.exports = async function(options) {
                   }
                   return sample.assets.generation;
                 };
+
+                self.on('apostrophe:destroy', 'cleanUpUploadfs', function() {
+                  return Promise.promisify(self.uploadfs.destroy)();
+                });
               },
 
               afterConstruct: function(self, callback) {
@@ -1079,7 +1117,7 @@ module.exports = async function(options) {
   // are no longer visible or no longer exist
 
   function janitor() {
-    setInterval(sweep, 60000);
+    self.janitorInterval = setInterval(sweep, 60000);
     async function sweep() {
       const ids = Object.keys(aposes);
       if (!ids.length) {
