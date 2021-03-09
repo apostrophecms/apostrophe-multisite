@@ -146,6 +146,8 @@ module.exports = async function(options) {
     options.env = process.env.ENV;
   }
 
+  self.mongodbUrl = options.mongodbUrl;
+
   // All sites running under this process share a mongodb connection object
   const db = await mongo.MongoClient.connect(options.mongodbUrl, {
     useUnifiedTopology: true
