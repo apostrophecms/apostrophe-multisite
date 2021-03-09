@@ -1,3 +1,7 @@
+# 2.10.0
+
+* Copying sites: starting with MongoDB server version 4.2, the `copydb` command is no longer supported, so we use a `mongodump | mongorestore` pipeline instead. For maximum backwards compatibility we don't do this unless we have to (MongoDB server version is 4.2 or greater). You should make sure up to date versions of these utilities are installed in the PATH for future compatibility.
+
 # 2.9.0
 
 * `destroy` method for the multisite object shuts down everything. Used for clean termination of mocha tests and verification that `apos.destroy` does its job too.
