@@ -1,3 +1,7 @@
+# UNRELEASED
+
+* Mixed-case values for `shortName` and `prodHostname` are now normalized to lower case. Without this they do not match any web requests, resulting in a `notfound` message. A migration is included to take care of this in existing databases.
+
 # 2.10.0
 
 * Copying sites: starting with MongoDB server version 4.2, the `copydb` command is no longer supported, so we use a `mongodump | mongorestore` pipeline instead. For maximum backwards compatibility we don't do this unless we have to (MongoDB server version is 4.2 or greater). You should make sure up to date versions of these utilities are installed in the PATH for future compatibility.
