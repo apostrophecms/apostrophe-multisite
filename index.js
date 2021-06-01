@@ -85,7 +85,7 @@ module.exports = async function(options) {
   self.destroy = async function() {
     enableDestroy(self.server);
     self.server.destroy();
-    for (const [key, apos] of Object.entries(aposes)) {
+    for (const [ key, apos ] of Object.entries(aposes)) {
       if ((typeof apos) === 'object') {
         await Promise.promisify(apos.destroy)();
         delete aposes[key];
@@ -167,7 +167,7 @@ module.exports = async function(options) {
       options.dashboardHostname = options.dashboardHostname.split(',');
     }
     if (!Array.isArray(options.dashboardHostname)) {
-      options.dashboardHostname = [options.dashboardHostname];
+      options.dashboardHostname = [ options.dashboardHostname ];
     }
   }
   if (!options.sessionSecret) {
@@ -282,6 +282,9 @@ module.exports = async function(options) {
 
   function dashboardMiddleware(req, res, next) {
     let site = req.get('Host');
+    if (!site) {
+      return next();
+    }
     const matches = site.match(/^([^:]+)/);
     if (!matches) {
       return next();
@@ -344,7 +347,7 @@ module.exports = async function(options) {
   async function getLiveSiteByHostname(name) {
     return dashboard.docs.db.findOne({
       type: 'site',
-      hostnames: { $in: [name] },
+      hostnames: { $in: [ name ] },
       // For speed and because they can have their own users and permissions
       // at page level, which works just fine, we do not implement the entire
       // Apostrophe permissions stack with regard to the site object before
@@ -799,7 +802,7 @@ module.exports = async function(options) {
       type: 'site',
       $or: [
         {
-          hostnames: { $in: [site] }
+          hostnames: { $in: [ site ] }
         },
         {
           _id: site
@@ -881,7 +884,7 @@ module.exports = async function(options) {
         site.theme = argv.theme;
       }
       await dashboard.sites.insert(req, site);
-      sites = [site];
+      sites = [ site ];
     } else if (options.someSites) {
       const identifiers = options.someSites;
       sites = await dashboard.sites.find(req, {
@@ -909,7 +912,7 @@ module.exports = async function(options) {
         const spawn = require('child_process').spawnSync;
         for (let i = 0; (i < sites.length); i += 10) {
           const ids = sites.slice(i, i + 10).map(site => site._id);
-          const result = spawn(process.argv[0], process.argv.slice(1).concat(['--sites=' + ids.join(',')]), {
+          const result = spawn(process.argv[0], process.argv.slice(1).concat([ '--sites=' + ids.join(',') ]), {
             encoding: 'utf8',
             stdio: 'inherit'
           });
@@ -924,7 +927,7 @@ module.exports = async function(options) {
       const spawn = require('child_process').spawnSync;
       sites.forEach(site => {
         log(site, 'info', `running task ${argv._[0]}`);
-        const result = spawn(process.argv[0], process.argv.slice(1).concat(['--site=' + site._id]), {
+        const result = spawn(process.argv[0], process.argv.slice(1).concat([ '--site=' + site._id ]), {
           encoding: 'utf8',
           stdio: 'inherit'
         });

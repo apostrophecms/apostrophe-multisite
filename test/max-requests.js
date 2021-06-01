@@ -34,7 +34,7 @@ describe('Apostrophe-multisite', function() {
 
     before(async () => {
       // remove temp files
-      await del(['./test/sites/data']);
+      await del([ './test/sites/data' ]);
 
       // find and remove test dbs
       const mongodbUrl =

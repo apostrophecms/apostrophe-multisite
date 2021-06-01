@@ -4,7 +4,7 @@ module.exports = async function(options = {}) {
       groups: [
         {
           title: 'admin',
-          permissions: ['admin']
+          permissions: [ 'admin' ]
         }
       ]
     },
