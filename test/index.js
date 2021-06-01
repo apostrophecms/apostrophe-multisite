@@ -35,7 +35,7 @@ describe('Apostrophe-multisite', function() {
 
     before(async () => {
       // remove temp files
-      await del(['./test/sites/data']);
+      await del([ './test/sites/data' ]);
 
       // find and remove test dbs
       const mongodbUrl =
@@ -111,7 +111,7 @@ describe('Apostrophe-multisite', function() {
         username: admin,
         password: admin,
         title: admin,
-        groupIds: [adminGroup._id]
+        groupIds: [ adminGroup._id ]
       });
       expect(adminUser).to.have.property('type', 'apostrophe-user');
 
@@ -134,7 +134,7 @@ describe('Apostrophe-multisite', function() {
         ...site,
         ...newSite,
         devBaseUrl: 'site2.test',
-        hostnamesArray: [{ hostname: 'site2.test' }]
+        hostnamesArray: [ { hostname: 'site2.test' } ]
       });
       const siteT = await rp(`http://site2.test:${port}`);
       expect(siteT).to.have.string('Home');

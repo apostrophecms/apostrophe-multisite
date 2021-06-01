@@ -1,5 +1,9 @@
 # Changelog
 
+## UNRELEASED
+
+* Fix crash on missing Host field.
+
 ## 2.11.0 (2021-05-19)
 
 * Mixed-case values for `shortName` and `prodHostname` are now normalized to lower case. Without this they do not match any web requests, resulting in a `notfound` message. A migration is included to take care of this in existing databases.
