@@ -3,6 +3,7 @@
 ## UNRELEASED
 
 * Fix crash on missing Host field.
+* When copying a site's database with mongorestore, explicitly use `--nsInclude=*` as some versions of mongorestore will restore nothing without it.
 
 ## 2.11.0 (2021-05-19)
 
