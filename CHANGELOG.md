@@ -1,6 +1,6 @@
 # Changelog
 
-## UNRELEASED
+## 2.11.1 (2021-06-02)
 
 * Fix crash on missing Host field.
 
