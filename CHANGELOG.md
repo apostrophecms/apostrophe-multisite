@@ -1,5 +1,9 @@
 # Changelog
 
+## UNRELEASED
+
+- Removes `apostrophe` as a peer dependency.
+
 ## 2.11.1 (2021-06-02)
 
 * Fix crash on missing Host field.
