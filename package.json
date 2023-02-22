@@ -41,9 +41,6 @@
     "shell-quote": "^1.6.1",
     "uploadfs": "^1.16.0"
   },
-  "peerDependencies": {
-    "apostrophe": "^2.101.0"
-  },
   "devDependencies": {
     "apostrophe": "^2.109.0",
     "chai": "^4.2.0",
