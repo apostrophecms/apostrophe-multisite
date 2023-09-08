@@ -501,7 +501,15 @@ module.exports = async function(options) {
                 uploadsPath: getRootDir() + '/sites/public/uploads',
                 uploadsUrl: '/uploads',
                 tempPath: getRootDir() + '/sites/data/temp/' + site._id + '/uploadfs',
-                https: true
+                https: true,
+                ...(process.env.CDN
+                  ? {
+                    cdn: {
+                      enabled: true,
+                      url: process.env.CDN + '/' + site._id
+                    }
+                  }
+                  : {})
               }
             },
 
@@ -544,7 +552,16 @@ module.exports = async function(options) {
                     prefix: '/shared-assets',
                     uploadsPath: getRootDir() + '/sites/public/uploads',
                     uploadsUrl: '/uploads',
-                    tempPath: getRootDir() + '/sites/data/temp/shared-assets/uploadfs'
+                    tempPath: getRootDir() + '/sites/data/temp/shared-assets/uploadfs',
+                    ...(process.env.CDN
+                      ? {
+                        cdn: {
+                          enabled: true,
+                          // uploadfs does not apply the prefix to the CDN unless told to
+                          url: process.env.CDN + '/shared-assets'
+                        }
+                      }
+                      : {})
                   };
 
                   self.uploadfsSettings = {};
@@ -720,7 +737,15 @@ module.exports = async function(options) {
                 uploadsUrl: '/uploads',
                 tempPath: getRootDir() + '/data/temp/dashboard/uploadfs',
                 // Avoid mixed content warning
-                https: true
+                https: true,
+                ...(process.env.CDN
+                  ? {
+                    cdn: {
+                      enabled: true,
+                      url: process.env.CDN + '/dashboard'
+                    }
+                  }
+                  : {})
               }
             },
 
