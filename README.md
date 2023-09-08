@@ -414,6 +414,16 @@ You can create your own environment names by adding url fields to your `sites` p
 
 The `ENV` environment variable determines which environment will be used. If it is `prod` for example, the url used will be the one defined in the schema or in the sites configuration for `prod`.
 
+### Using a CDN
+
+If you are using a CDN such as Cloudfront or Cloudflare that automatically mirrors the contents of your S3 bucket or other uploadfs cloud storage, you can specify that CDN so that Apostrophe generates public URLs that reference it instead of pointing directly to the cloud storage:
+
+```
+CDN=https://myproject.my-cdn.com
+```
+
+Since the sites share a single cloud storage facility with a single URL, they also share a single CDN in front of that.
+
 ## Resource leak mitigation
 
 If you suspect your application is slowly leaking memory, HTTP sockets or some other resource that eventually renders it nonresponsive, you can set the `maxRequestsBeforeShutdown` option. The application will automatically exit after that number of requests. By default, this mechanism calls `process.exit(0)`. You can change this behavior by passing a custom `exit` function to `apostrophe-multisite` as an option.
