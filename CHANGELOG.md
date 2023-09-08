@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.12.0 (2023-09-08)
+
+- Supports the `CDN` environment variable.
+
 ## 2.11.2 (2023-03-06)
 
 - Removes `apostrophe` as a peer dependency.
