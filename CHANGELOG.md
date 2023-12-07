@@ -2,7 +2,7 @@
 
 ## UNRELEASED
 
-- Verify that shortname is not already used by another active site when saving a site.
+- Verify that shortname is not already in use by another active site when saving a site.
 
 ## 2.12.0 (2023-09-08)
 
