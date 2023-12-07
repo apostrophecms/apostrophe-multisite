@@ -154,6 +154,68 @@ describe('Apostrophe-multisite', function() {
       expect(response).to.have.property('statusCode', 302);
     });
 
+    it('should not add a site that has a shortname already in use by another site', async function() {
+      sites.options.baseUrlDomains = {
+        dev: 'site.test:3000'
+      };
+
+      await sites.insert(req, {
+        ...site,
+        title: 'aaa',
+        slug: 'aaa',
+        adminPassword: 'aaa',
+        shortName: 'aaa'
+      });
+
+      try {
+        await sites.insert(req, {
+          ...site,
+          title: 'bbb',
+          slug: 'bbb',
+          adminPassword: 'bbb',
+          shortName: 'aaa'
+        });
+        throw new Error('should have thrown');
+      } catch (error) {
+        expect(error.message).to.equal('invalid');
+      }
+
+      delete sites.options.baseUrlDomains;
+    });
+
+    it('should not add a site that has a shortname already in use by another site', async function() {
+      sites.options.baseUrlDomains = {
+        dev: 'site.test:3000'
+      };
+
+      await sites.insert(req, {
+        ...site,
+        title: 'ccc',
+        slug: 'ccc',
+        adminPassword: 'ccc',
+        shortName: 'ccc'
+      });
+      const sitePiece = await sites.insert(req, {
+        ...site,
+        title: 'ddd',
+        slug: 'ddd',
+        adminPassword: 'ddd',
+        shortName: 'ddd'
+      });
+
+      try {
+        await sites.update(req, {
+          ...sitePiece,
+          shortName: 'ccc'
+        });
+        throw new Error('should have thrown');
+      } catch (error) {
+        expect(error.message).to.equal('invalid');
+      }
+
+      delete sites.options.baseUrlDomains;
+    });
+
     // it('set up why-is-node-running', function() {
     //   setTimeout(function () {
     //     running(); // logs out active handles that are keeping node running
