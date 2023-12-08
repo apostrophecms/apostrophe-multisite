@@ -1,5 +1,9 @@
 # Changelog
 
+## UNRELEASED
+
+- Verify that shortname is not already in use by another active site when saving a site.
+
 ## 2.12.0 (2023-09-08)
 
 - Supports the `CDN` environment variable.
