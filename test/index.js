@@ -183,7 +183,7 @@ describe('Apostrophe-multisite', function() {
       delete sites.options.baseUrlDomains;
     });
 
-    it('should not add a site that has a shortname already in use by another site', async function() {
+    it('should not update a site that has a shortname already in use by another site', async function() {
       sites.options.baseUrlDomains = {
         dev: 'site.test:3000'
       };
