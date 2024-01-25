@@ -1,6 +1,6 @@
 {
   "name": "apostrophe-multisite",
-  "version": "2.12.0",
+  "version": "2.12.1",
   "description": "Multisite support for the Apostrophe CMS. Create & manage multiple sites with the same configuration and host them efficiently.",
   "main": "index.js",
   "scripts": {
